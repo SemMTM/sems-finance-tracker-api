@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from ..models.income import Income
+from decimal import Decimal
 
 
 class IncomeSerializer(serializers.ModelSerializer):
@@ -8,6 +9,8 @@ class IncomeSerializer(serializers.ModelSerializer):
     formatted_amount = serializers.SerializerMethodField()
     readable_date = serializers.SerializerMethodField()
     repeated_display = serializers.SerializerMethodField()
+    amount = serializers.DecimalField(
+        max_digits=10, decimal_places=2, write_only=True)
 
     class Meta:
         model = Income
@@ -34,3 +37,13 @@ class IncomeSerializer(serializers.ModelSerializer):
         Returns the human-readable display value for the 'repeated' field.
         """
         return obj.get_repeated_display()
+
+    def to_internal_value(self, data):
+        """
+        Convert pounds (with decimals) to pence (int) before saving.
+        """
+        data = super().to_internal_value(data)
+        data['amount'] = int(
+            Decimal(data['amount']).quantize(Decimal('0.01')) * 100
+        )
+        return data

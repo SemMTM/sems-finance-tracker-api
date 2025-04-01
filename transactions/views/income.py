@@ -1,17 +1,21 @@
 from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied
 from django.utils.timezone import now
-from ..models.expenditure import Expenditure
-from ..serializers.expenditure import ExpenditureSerializer
+from ..models.income import Income
+from ..serializers.income import IncomeSerializer
 
 
-class ExpenditureViewSet(viewsets.ModelViewSet):
-    serializer_class = ExpenditureSerializer
+class IncomeViewSet(viewsets.ModelViewSet):
+    """
+    Handles listing, creating, updating, and
+    deleting income entries for the current user and month.
+    """
+    serializer_class = IncomeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         """
-        Return this user's expenditures for the current month only.
+        Return this user's income entries for the current month.
         """
         user = self.request.user
         current_date = now()
@@ -25,7 +29,7 @@ class ExpenditureViewSet(viewsets.ModelViewSet):
             end_of_month = start_of_month.replace(
                 month=start_of_month.month + 1)
 
-        return Expenditure.objects.filter(
+        return Income.objects.filter(
             owner=user,
             date__gte=start_of_month,
             date__lt=end_of_month
@@ -36,10 +40,9 @@ class ExpenditureViewSet(viewsets.ModelViewSet):
 
     def get_object(self):
         """
-        Ensures the user only accesses their own object.
+        Restrict object-level access to the owner only.
         """
         obj = super().get_object()
         if obj.owner != self.request.user:
-            raise PermissionDenied(
-                "You do not have permission to access this expenditure.")
+            raise PermissionDenied("You do not have permission to access this income entry.")
         return obj
