@@ -1,8 +1,8 @@
 from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied
-from django.utils.timezone import now
 from ..models.expenditure import Expenditure
 from ..serializers.expenditure import ExpenditureSerializer
+from core.utils.date_helpers import get_user_and_month_range
 
 
 class ExpenditureViewSet(viewsets.ModelViewSet):
@@ -13,22 +13,12 @@ class ExpenditureViewSet(viewsets.ModelViewSet):
         """
         Return this user's expenditures for the current month only.
         """
-        user = self.request.user
-        current_date = now()
-        start_of_month = current_date.replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0)
-
-        if start_of_month.month == 12:
-            end_of_month = start_of_month.replace(
-                year=start_of_month.year + 1, month=1)
-        else:
-            end_of_month = start_of_month.replace(
-                month=start_of_month.month + 1)
+        user, start, end = get_user_and_month_range(self.request)
 
         return Expenditure.objects.filter(
             owner=user,
-            date__gte=start_of_month,
-            date__lt=end_of_month
+            date__gte=start,
+            date__lt=end
         ).order_by('date')
 
     def perform_create(self, serializer):

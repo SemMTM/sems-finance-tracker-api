@@ -7,7 +7,8 @@ class DisposableIncomeBudget(models.Model):
     Stores the user’s set budget for disposable spending.
     """
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
-    amount = models.PositiveIntegerField(null=False, blank=False)
+    amount = models.PositiveIntegerField(
+        null=False, blank=False, default=0)
 
     def __str__(self):
         return f"{self.owner} Budget: {self.amount}"

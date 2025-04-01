@@ -22,7 +22,7 @@ class DisposableIncomeBudgetSerializer(serializers.ModelSerializer):
 
     def get_formatted_amount(self, obj):
         return f"£{obj.amount / 100:.2f}"
-    
+
     def to_internal_value(self, data):
         """
         Convert pounds (with decimals) to pence (int) before saving.
