@@ -20,6 +20,7 @@ class DisposableIncomeSpending(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
     title = models.CharField(max_length=100, blank=False)
     amount = models.PositiveIntegerField(blank=False)
+    date = models.DateTimeField(blank=False)
 
     def __str__(self):
         return f"{self.owner} DIS: {self.title} - {self.amount}"
