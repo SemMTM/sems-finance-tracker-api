@@ -1,9 +1,8 @@
 from rest_framework import serializers
-from ..models.expenditure import Expenditure
+from ..models.income import Income
 
 
-class ExpenditureSerializer(serializers.ModelSerializer):
-
+class IncomeSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')
     is_owner = serializers.SerializerMethodField()
     formatted_amount = serializers.SerializerMethodField()
@@ -11,38 +10,23 @@ class ExpenditureSerializer(serializers.ModelSerializer):
     repeated_display = serializers.SerializerMethodField()
 
     class Meta:
-        model = Expenditure
+        model = Income
         fields = [
-            'id',
-            'title',
-            'amount',
-            'formatted_amount',
-            'type',
-            'repeated',
-            'date',
-            'readable_date',
-            'owner',
-            'is_owner'
+            'id', 'title', 'amount', 'formatted_amount',
+            'date', 'readable_date',
+            'repeated', 'repeated_display',
+            'owner', 'is_owner'
         ]
         read_only_fields = ['owner']
 
     def get_is_owner(self, obj):
-        """
-        Returns True if the logged-in user is the owner of the expenditure.
-        """
         request = self.context.get('request')
         return request.user == obj.owner if request else False
 
     def get_formatted_amount(self, obj):
-        """
-        Returns a nicely formatted currency string, e.g. "£120.00".
-        """
         return f"£{obj.amount / 100:.2f}"
 
     def get_readable_date(self, obj):
-        """
-        Returns a human-readable formatted date, e.g. "March 28, 2025".
-        """
         return obj.date.strftime('%B %d, %Y')
 
     def get_repeated_display(self, obj):

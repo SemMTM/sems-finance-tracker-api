@@ -41,7 +41,7 @@ class DisposableIncomeSpendingSerializer(serializers.ModelSerializer):
         return request.user == obj.owner if request else False
 
     def get_formatted_amount(self, obj):
-        return f"£{obj.amount:.2f}"
+        return f"£{obj.amount / 100:.2f}"
 
     def get_readable_date(self, obj):
         return obj.date.strftime('%B %d, %Y')
