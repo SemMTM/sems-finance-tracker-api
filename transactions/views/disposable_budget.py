@@ -35,7 +35,6 @@ class DisposableIncomeBudgetViewSet(viewsets.ModelViewSet):
         raise PermissionDenied("You cannot create a budget manually.")
 
     def get_object(self):
-        # Ensures user can only access their own budget
         obj = super().get_object()
         if obj.owner != self.request.user:
             raise PermissionDenied(
@@ -43,7 +42,6 @@ class DisposableIncomeBudgetViewSet(viewsets.ModelViewSet):
         return obj
 
     def update(self, request, *args, **kwargs):
-        # Optional: enforce that amount can only be edited, not deleted
         if 'amount' in request.data:
             try:
                 val = int(request.data['amount'])

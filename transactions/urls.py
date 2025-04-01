@@ -5,6 +5,7 @@ from .views import (
     IncomeViewSet,
     DisposableIncomeSpendingViewSet,
     DisposableIncomeBudgetViewSet,
+    CurrencyViewSet,
 )
 
 
@@ -15,6 +16,7 @@ router.register(r'disposable-spending', DisposableIncomeSpendingViewSet,
                 basename='disposable-spending')
 router.register(r'disposable-budget', DisposableIncomeBudgetViewSet,
                 basename='disposable-budget')
+router.register(r'currency', CurrencyViewSet, basename='currency')
 
 urlpatterns = [
     path('', include(router.urls)),
