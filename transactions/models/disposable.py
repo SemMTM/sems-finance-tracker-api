@@ -9,6 +9,7 @@ class DisposableIncomeBudget(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
     amount = models.PositiveIntegerField(
         null=False, blank=False, default=0)
+    date = models.DateTimeField(blank=False)
 
     def __str__(self):
         return f"{self.owner} Budget: {self.amount}"

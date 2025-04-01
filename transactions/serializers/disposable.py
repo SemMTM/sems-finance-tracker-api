@@ -6,6 +6,7 @@ from decimal import Decimal
 
 class DisposableIncomeBudgetSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')
+    date = serializers.ReadOnlyField()
     is_owner = serializers.SerializerMethodField()
     formatted_amount = serializers.SerializerMethodField()
     amount = serializers.DecimalField(
@@ -13,7 +14,8 @@ class DisposableIncomeBudgetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DisposableIncomeBudget
-        fields = ['id', 'amount', 'formatted_amount', 'owner', 'is_owner']
+        fields = ['id', 'amount', 'formatted_amount', 'owner', 'is_owner',
+                  'date']
         read_only_fields = ['owner']
 
     def get_is_owner(self, obj):
@@ -60,7 +62,7 @@ class DisposableIncomeSpendingSerializer(serializers.ModelSerializer):
 
     def get_readable_date(self, obj):
         return obj.date.strftime('%B %d, %Y')
-    
+
     def to_internal_value(self, data):
         """
         Convert pounds (with decimals) to pence (int) before saving.
