@@ -21,7 +21,7 @@ SECRET_KEY = {
 DEBUG = 'DEV' in os.environ
 
 ALLOWED_HOSTS = [
-    '.herokuapp.com',
+    os.environ.get('ALLOWED_HOST'),
     "127.0.0.1",
     'localhost'
 ]
@@ -81,9 +81,9 @@ REST_FRAMEWORK = {
         if 'DEV' in os.environ
         else 'dj_rest_auth.jwt_auth.JWTCookieAuthentication'
     )],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ]
+    # 'DEFAULT_PERMISSION_CLASSES': [
+    #     'rest_framework.permissions.IsAuthenticated',
+    # ]
 }
 if 'DEV' not in os.environ:
     REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] = [
