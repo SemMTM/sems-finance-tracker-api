@@ -64,12 +64,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    origin for origin in [
-        os.environ.get('CLIENT_ORIGIN'),
-        os.environ.get('CLIENT_ORIGIN_DEV')
-    ] if origin
-]
+CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -89,8 +84,6 @@ if 'DEV' not in os.environ:
     REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] = [
         'rest_framework.renderers.JSONRenderer'
     ]
-
-CORS_ALLOW_ALL_ORIGINS = True
 
 REST_USE_JWT = True
 JWT_AUTH_SECURE = True
