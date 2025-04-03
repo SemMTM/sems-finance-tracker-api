@@ -38,26 +38,28 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.sites',
+
+    # Allauth for registration/social
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
-    'dj_rest_auth.registration',
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.facebook',
+
+    # REST and Auth
     'rest_framework',
-    'rest_framework.authtoken',
     'rest_framework_simplejwt',
     'dj_rest_auth',
+    'dj_rest_auth.registration',
     'corsheaders',
 
+    # Your apps
     'transactions',
     'core',
 ]
-
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'allauth.account.middleware.AccountMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -73,15 +75,20 @@ CORS_ALLOW_CREDENTIALS = True
 DEV = os.getenv('DEV')
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [(
+    'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication'
         if 'DEV' in os.environ
         else 'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )],
+    ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ]
 }
+
+if 'DEV' not in os.environ:
+    REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] = [
+        'rest_framework.renderers.JSONRenderer'
+    ]
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
@@ -97,11 +104,8 @@ JWT_AUTH_SECURE = True
 JWT_AUTH_COOKIE = 'my-app-auth'
 JWT_AUTH_REFRESH_COOKIE = 'my-refresh-token'
 JWT_AUTH_SAMESITE = 'None'
+REST_AUTH_TOKEN_MODEL = None
 
-DJ_REST_AUTH = {
-    'USE_JWT': True,
-    'TOKEN_MODEL': None,
-}
 
 ROOT_URLCONF = 'SFT_API.urls'
 
