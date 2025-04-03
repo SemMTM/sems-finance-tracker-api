@@ -16,6 +16,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from dj_rest_auth.jwt_auth import get_refresh_view
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -24,5 +26,8 @@ urlpatterns = [
     path(
         'dj-rest-auth/registration/', include('dj_rest_auth.registration.urls')
     ),
+    path('dj-rest-auth/token/refresh/', get_refresh_view().as_view(),
+         name='token_refresh'),
+
     path('api/', include('transactions.urls')),
 ]
