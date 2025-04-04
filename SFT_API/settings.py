@@ -23,13 +23,12 @@ ALLOWED_HOSTS = [
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
+    'rest_framework',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django.contrib.sites',
 
-    'rest_framework',
     'corsheaders',
 
     'transactions',
@@ -52,10 +51,25 @@ CORS_ALLOW_CREDENTIALS = True
 
 DEV = os.getenv('DEV')
 
-#if 'DEV' not in os.environ:
- #   REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] = [
-  #      'rest_framework.renderers.JSONRenderer'
-   # ]
+if DEBUG:
+    REST_FRAMEWORK = {
+        'DEFAULT_RENDERER_CLASSES': [
+            'rest_framework.renderers.JSONRenderer',
+            'rest_framework.renderers.BrowsableAPIRenderer',
+        ],
+        'DEFAULT_AUTHENTICATION_CLASSES': [
+            'rest_framework.authentication.SessionAuthentication',
+        ],
+    }
+else:
+    REST_FRAMEWORK = {
+        'DEFAULT_RENDERER_CLASSES': [
+            'rest_framework.renderers.JSONRenderer',
+        ],
+        'DEFAULT_AUTHENTICATION_CLASSES': [
+            'rest_framework.authentication.SessionAuthentication',
+        ],
+    }
 
 ROOT_URLCONF = 'SFT_API.urls'
 
