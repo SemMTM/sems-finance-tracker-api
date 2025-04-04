@@ -22,8 +22,11 @@ INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.sites',
     'django.contrib.auth',
+    'dj_rest_auth',
+    'dj_rest_auth.registration',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework.authtoken',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
@@ -62,6 +65,18 @@ CORS_ALLOW_CREDENTIALS = True
 
 DEV = os.getenv('DEV')
 
+REST_AUTH = {
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'my-app-auth',
+    'JWT_AUTH_REFRESH_COOKIE': 'my-refresh-token',
+    'JWT_AUTH_SECURE': not DEBUG,
+}
+
+
+REST_AUTH_SERIALIZERS = {
+    'LOGIN_SERIALIZER': 'dj_rest_auth.serializers.JWTSerializer',
+}
+
 if DEBUG:
     REST_FRAMEWORK = {
         'DEFAULT_RENDERER_CLASSES': [
@@ -79,6 +94,7 @@ else:
         ],
         'DEFAULT_AUTHENTICATION_CLASSES': [
             'rest_framework_simplejwt.authentication.JWTAuthentication',
+            'dj_rest_auth.jwt_auth.JWTCookieAuthentication',
         ],
         'DEFAULT_PERMISSION_CLASSES': (
             'rest_framework.permissions.IsAuthenticated',
