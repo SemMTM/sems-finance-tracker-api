@@ -8,9 +8,7 @@ if os.path.isfile('env.py'):
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = {
-    'default': os.environ.get("SECRET_KEY")
-}
+SECRET_KEY = os.environ.get("SECRET_KEY")
 
 DEBUG = 'DEV' in os.environ
 
@@ -24,6 +22,7 @@ INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'rest_framework',
+    'rest_framework_simplejwt',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
@@ -67,9 +66,20 @@ else:
             'rest_framework.renderers.JSONRenderer',
         ],
         'DEFAULT_AUTHENTICATION_CLASSES': [
-            'rest_framework.authentication.SessionAuthentication',
+            'rest_framework_simplejwt.authentication.JWTAuthentication',
         ],
+        'DEFAULT_PERMISSION_CLASSES': (
+            'rest_framework.permissions.IsAuthenticated',
+        ),
     }
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
 
 ROOT_URLCONF = 'SFT_API.urls'
 
