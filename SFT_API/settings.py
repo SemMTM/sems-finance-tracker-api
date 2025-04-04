@@ -70,11 +70,7 @@ REST_AUTH = {
     'JWT_AUTH_COOKIE': 'my-app-auth',
     'JWT_AUTH_REFRESH_COOKIE': 'my-refresh-token',
     'JWT_AUTH_SECURE': not DEBUG,
-}
-
-
-REST_AUTH_SERIALIZERS = {
-    'LOGIN_SERIALIZER': 'dj_rest_auth.serializers.JWTSerializer',
+    'JWT_AUTH_HTTPONLY': False
 }
 
 if DEBUG:
