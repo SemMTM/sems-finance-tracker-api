@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework.authtoken',
+    'rest_framework_simplejwt.token_blacklist',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
@@ -65,12 +66,14 @@ CORS_ALLOW_CREDENTIALS = True
 
 DEV = os.getenv('DEV')
 
+DEBUG_PROPAGATE_EXCEPTIONS = True
+
 REST_AUTH = {
     'USE_JWT': True,
     'JWT_AUTH_COOKIE': 'my-app-auth',
     'JWT_AUTH_REFRESH_COOKIE': 'my-refresh-token',
     'JWT_AUTH_SECURE': True,
-    'JWT_AUTH_HTTPONLY': True,
+    'JWT_AUTH_HTTPONLY': False,
     'JWT_AUTH_SAMESITE': 'None',
 }
 
@@ -81,7 +84,8 @@ if DEBUG:
             'rest_framework.renderers.BrowsableAPIRenderer',
         ],
         'DEFAULT_AUTHENTICATION_CLASSES': [
-            'rest_framework.authentication.SessionAuthentication',
+            'rest_framework_simplejwt.authentication.JWTAuthentication',
+            'dj_rest_auth.jwt_auth.JWTCookieAuthentication',
         ],
     }
 else:
