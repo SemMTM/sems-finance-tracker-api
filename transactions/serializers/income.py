@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from ..models.income import Income
 from decimal import Decimal
+from core.utils.currency import get_user_currency_symbol
 
 
 class IncomeSerializer(serializers.ModelSerializer):
@@ -27,7 +28,8 @@ class IncomeSerializer(serializers.ModelSerializer):
         return request.user == obj.owner if request else False
 
     def get_formatted_amount(self, obj):
-        return f"£{obj.amount / 100:.2f}"
+        symbol = get_user_currency_symbol(self.context.get('request'))
+        return f"{symbol}{obj.amount / 100:.2f}"
 
     def get_readable_date(self, obj):
         return obj.date.strftime('%B %d, %Y')

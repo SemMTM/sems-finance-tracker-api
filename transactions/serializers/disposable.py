@@ -2,6 +2,7 @@ from rest_framework import serializers
 from ..models.disposable import (
     DisposableIncomeBudget, DisposableIncomeSpending)
 from decimal import Decimal
+from core.utils.currency import get_user_currency_symbol
 
 
 class DisposableIncomeBudgetSerializer(serializers.ModelSerializer):
@@ -23,7 +24,8 @@ class DisposableIncomeBudgetSerializer(serializers.ModelSerializer):
         return request.user == obj.owner if request else False
 
     def get_formatted_amount(self, obj):
-        return f"£{obj.amount / 100:.2f}"
+        symbol = get_user_currency_symbol(self.context.get('request'))
+        return f"{symbol}{obj.amount / 100:.2f}"
 
     def to_internal_value(self, data):
         """

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from ..models.expenditure import Expenditure
 from decimal import Decimal
+from core.utils.currency import get_user_currency_symbol
 
 
 class ExpenditureSerializer(serializers.ModelSerializer):
@@ -38,10 +39,8 @@ class ExpenditureSerializer(serializers.ModelSerializer):
         return request.user == obj.owner if request else False
 
     def get_formatted_amount(self, obj):
-        """
-        Returns a nicely formatted currency string, e.g. "£120.00".
-        """
-        return f"£{obj.amount / 100:.2f}"
+        symbol = get_user_currency_symbol(self.context.get('request'))
+        return f"{symbol}{obj.amount / 100:.2f}"
 
     def get_readable_date(self, obj):
         """
@@ -54,7 +53,7 @@ class ExpenditureSerializer(serializers.ModelSerializer):
         Returns the human-readable display value for the 'repeated' field.
         """
         return obj.get_repeated_display()
-    
+
     def to_internal_value(self, data):
         """
         Convert pounds (with decimals) to pence (int) before saving.
