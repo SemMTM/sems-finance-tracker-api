@@ -70,7 +70,7 @@ REST_AUTH = {
     'USE_JWT': True,
     'JWT_AUTH_COOKIE': 'my-app-auth',
     'JWT_AUTH_REFRESH_COOKIE': 'my-refresh-token',
-    'JWT_AUTH_SECURE': True,
+    'JWT_AUTH_SECURE': not DEBUG,
     'JWT_AUTH_HTTPONLY': not DEBUG,
     'JWT_AUTH_SAMESITE': 'None',
 }
@@ -82,7 +82,8 @@ if DEBUG:
             'rest_framework.renderers.BrowsableAPIRenderer',
         ],
         'DEFAULT_AUTHENTICATION_CLASSES': [
-            'rest_framework_simplejwt.authentication.JWTAuthentication',
+            'rest_framework.authentication.SessionAuthentication',
+            # 'rest_framework_simplejwt.authentication.JWTAuthentication',
             'dj_rest_auth.jwt_auth.JWTCookieAuthentication',
         ],
     }
