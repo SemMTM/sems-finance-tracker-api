@@ -34,19 +34,12 @@ class DisposableIncomeBudgetViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         raise PermissionDenied("You cannot create a budget manually.")
 
+    def destroy(self, request, *args, **kwargs):
+        raise PermissionDenied("You cannot delete a budget.")
+
     def get_object(self):
         obj = super().get_object()
         if obj.owner != self.request.user:
             raise PermissionDenied(
                 "You do not have permission to access this budget.")
         return obj
-
-    def update(self, request, *args, **kwargs):
-        if 'amount' in request.data:
-            try:
-                val = int(request.data['amount'])
-                if val < 0:
-                    raise PermissionDenied("Budget cannot be negative.")
-            except ValueError:
-                raise PermissionDenied("Invalid value for amount.")
-        return super().update(request, *args, **kwargs)
