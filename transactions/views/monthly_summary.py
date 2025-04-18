@@ -51,7 +51,6 @@ class MonthlySummaryView(APIView):
             bills_total + saving_total + investment_total + disposable_spending)
         remaining_disposable = budget_amount - disposable_spending
 
-
         return Response({
             'income': total_income,
             'bills': bills_total,
