@@ -17,7 +17,10 @@ class MonthlySummarySerializer(serializers.Serializer):
         return get_user_currency_symbol(request)
 
     def format_amount(self, amount):
-        return f"{self.get_symbol()}{amount / 100:.2f}"
+        symbol = self.get_symbol()
+        value = abs(amount) / 100
+        sign = '-' if amount < 0 else ''
+        return f"{sign}{symbol}{value:.2f}"
 
     def get_formatted_income(self, obj):
         return self.format_amount(obj['income'])

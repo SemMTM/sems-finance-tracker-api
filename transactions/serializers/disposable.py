@@ -6,6 +6,7 @@ from core.utils.currency import get_user_currency_symbol
 from core.utils.date_helpers import get_user_and_month_range
 from django.db.models import Sum
 
+
 class DisposableIncomeBudgetSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')
     date = serializers.ReadOnlyField()
@@ -55,7 +56,9 @@ class DisposableIncomeBudgetSerializer(serializers.ModelSerializer):
     def get_remaining_formatted(self, obj):
         remaining = self.get_remaining_amount(obj)
         symbol = get_user_currency_symbol(self.context.get('request'))
-        return f"{symbol}{remaining / 100:.2f}"
+        value = abs(remaining) / 100
+        sign = '-' if remaining < 0 else ''
+        return f"{sign}{symbol}{value:.2f}"
 
 
 class DisposableIncomeSpendingSerializer(serializers.ModelSerializer):
@@ -80,7 +83,8 @@ class DisposableIncomeSpendingSerializer(serializers.ModelSerializer):
         return request.user == obj.owner if request else False
 
     def get_formatted_amount(self, obj):
-        return f"£{obj.amount / 100:.2f}"
+        symbol = get_user_currency_symbol(self.context.get('request'))
+        return f"{symbol}{obj.amount / 100:.2f}"
 
     def get_readable_date(self, obj):
         return obj.date.strftime('%B %d, %Y')
