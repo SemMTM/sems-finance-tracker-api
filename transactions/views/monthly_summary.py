@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from transactions.models import (
     Income, Expenditure, DisposableIncomeSpending, DisposableIncomeBudget)
+from transactions.serializers.monthly_summary import MonthlySummarySerializer
 
 
 class MonthlySummaryView(APIView):
@@ -51,7 +52,7 @@ class MonthlySummaryView(APIView):
             bills_total + saving_total + investment_total + disposable_spending)
         remaining_disposable = budget_amount - disposable_spending
 
-        return Response({
+        raw_data = {
             'income': total_income,
             'bills': bills_total,
             'saving': saving_total,
@@ -60,4 +61,7 @@ class MonthlySummaryView(APIView):
             'total': total,
             'budget': budget_amount,
             'remaining_disposable': remaining_disposable,
-        })
+        }
+        serializer = MonthlySummarySerializer(
+            raw_data, context={'request': request})
+        return Response(serializer.data)

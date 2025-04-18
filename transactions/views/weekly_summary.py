@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum
 from transactions.models import Income, Expenditure, DisposableIncomeSpending
 from core.utils.date_helpers import get_weeks_in_month_clipped
+from transactions.serializers.weekly_summary import WeeklySummarySerializer
 
 
 class WeeklySummaryView(APIView):
@@ -46,6 +47,6 @@ class WeeklySummaryView(APIView):
                 'summary': summary,
             })
 
-        return Response({
-            'weeks': weekly_data
-        })
+        serializer = WeeklySummarySerializer(
+            weekly_data, many=True, context={'request': request})
+        return Response({'weeks': serializer.data})
