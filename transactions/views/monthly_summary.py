@@ -30,7 +30,7 @@ class MonthlySummaryView(APIView):
             ).aggregate(total=Sum('amount'))['total'] or 0
 
         bills_total = get_expenditure_total('BILL')
-        saving_total = get_expenditure_total('SAVINGS')
+        saving_total = get_expenditure_total('SAVING')
         investment_total = get_expenditure_total('INVESTMENT')
 
         # 4. Get disposable income spending
