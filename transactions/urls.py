@@ -1,13 +1,14 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from transactions.views.monthly_summary import MonthlySummaryView
-from transactions.views.weekly_summary import WeeklySummaryView
 from .views import (
     ExpenditureViewSet,
     IncomeViewSet,
     DisposableIncomeSpendingViewSet,
     DisposableIncomeBudgetViewSet,
     CurrencyViewSet,
+    CalendarSummaryView,
+    WeeklySummaryView,
+    MonthlySummaryView,
 )
 
 
@@ -26,4 +27,6 @@ urlpatterns = [
          name='monthly-summary'),
     path('weekly-summary/', WeeklySummaryView.as_view(),
          name='weekly-summary'),
+    path('calendar-summary/', CalendarSummaryView.as_view(),
+         name='calendar-summary'),
 ]
