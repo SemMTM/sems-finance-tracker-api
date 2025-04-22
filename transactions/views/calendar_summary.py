@@ -3,7 +3,7 @@ from datetime import timedelta
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from transactions.models import Income, Expenditure
+from transactions.models import Income, Expenditure, DisposableIncomeSpending
 from transactions.serializers.calendar_summary import CalendarSummarySerializer
 from core.utils.date_helpers import get_user_and_month_range
 
@@ -29,6 +29,13 @@ class CalendarSummaryView(APIView):
         expenditures = Expenditure.objects.filter(
             owner=user, date__gte=start_of_month, date__lt=end_of_month)
         for item in expenditures:
+            date_key = item.date.date().isoformat()
+            day_totals[date_key]["expenditure"] += item.amount
+
+        # Aggregate disposable spending
+        disposable_spending = DisposableIncomeSpending.objects.filter(
+            owner=user, date__gte=start_of_month, date__lt=end_of_month)
+        for item in disposable_spending:
             date_key = item.date.date().isoformat()
             day_totals[date_key]["expenditure"] += item.amount
 
