@@ -62,24 +62,24 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
-CSRF_ALLOWED_ORIGINS = os.getenv("CSRF_ALLOWED_ORIGINS", "")
-CORS_ALLOW_CREDENTIALS = True
+# CSRF_ALLOWED_ORIGINS = os.getenv("CSRF_ALLOWED_ORIGINS", "")
+CORS_ALLOW_CREDENTIALS = False
 
-SESSION_COOKIE_SAMESITE = 'None'
-SESSION_COOKIE_SECURE = True
+# SESSION_COOKIE_SAMESITE = 'None'
+# SESSION_COOKIE_SECURE = True
 
-CSRF_COOKIE_SAMESITE = 'None'
-CSRF_COOKIE_SECURE = True
+# CSRF_COOKIE_SAMESITE = 'None'
+# CSRF_COOKIE_SECURE = True
 
 DEV = os.getenv('DEV')
 
 REST_AUTH = {
     'USE_JWT': True,
-    'JWT_AUTH_COOKIE': 'my-app-auth',
-    'JWT_AUTH_REFRESH_COOKIE': 'my-refresh-token',
-    'JWT_AUTH_SECURE': not DEBUG,
-    'JWT_AUTH_HTTPONLY': not DEBUG,
-    'JWT_AUTH_SAMESITE': 'None',
+    # 'JWT_AUTH_COOKIE': 'my-app-auth',
+    # 'JWT_AUTH_REFRESH_COOKIE': 'my-refresh-token',
+    # 'JWT_AUTH_SECURE': not DEBUG,
+    # 'JWT_AUTH_HTTPONLY': not DEBUG,
+    # 'JWT_AUTH_SAMESITE': 'None',
 }
 
 if DEBUG:
@@ -101,7 +101,7 @@ else:
         ],
         'DEFAULT_AUTHENTICATION_CLASSES': [
             'rest_framework_simplejwt.authentication.JWTAuthentication',
-            'dj_rest_auth.jwt_auth.JWTCookieAuthentication',
+            # 'dj_rest_auth.jwt_auth.JWTCookieAuthentication',
         ],
         'DEFAULT_PERMISSION_CLASSES': (
             'rest_framework.permissions.IsAuthenticated',
