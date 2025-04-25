@@ -1,6 +1,5 @@
 REPEATED_CHOICES = [
         ('NEVER', 'Never'),
-        ('DAILY', 'Daily'),
         ('WEEKLY', 'Weekly'),
         ('MONTHLY', 'Monthly'),
     ]

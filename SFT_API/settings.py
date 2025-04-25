@@ -62,24 +62,12 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
-# CSRF_ALLOWED_ORIGINS = os.getenv("CSRF_ALLOWED_ORIGINS", "")
 CORS_ALLOW_CREDENTIALS = False
-
-# SESSION_COOKIE_SAMESITE = 'None'
-# SESSION_COOKIE_SECURE = True
-
-# CSRF_COOKIE_SAMESITE = 'None'
-# CSRF_COOKIE_SECURE = True
 
 DEV = os.getenv('DEV')
 
 REST_AUTH = {
     'USE_JWT': True,
-    # 'JWT_AUTH_COOKIE': 'my-app-auth',
-    # 'JWT_AUTH_REFRESH_COOKIE': 'my-refresh-token',
-    # 'JWT_AUTH_SECURE': not DEBUG,
-    # 'JWT_AUTH_HTTPONLY': not DEBUG,
-    # 'JWT_AUTH_SAMESITE': 'None',
 }
 
 if DEBUG:
@@ -90,7 +78,6 @@ if DEBUG:
         ],
         'DEFAULT_AUTHENTICATION_CLASSES': [
             'rest_framework.authentication.SessionAuthentication',
-            # 'rest_framework_simplejwt.authentication.JWTAuthentication',
             'dj_rest_auth.jwt_auth.JWTCookieAuthentication',
         ],
     }
@@ -101,7 +88,6 @@ else:
         ],
         'DEFAULT_AUTHENTICATION_CLASSES': [
             'rest_framework_simplejwt.authentication.JWTAuthentication',
-            # 'dj_rest_auth.jwt_auth.JWTCookieAuthentication',
         ],
         'DEFAULT_PERMISSION_CLASSES': (
             'rest_framework.permissions.IsAuthenticated',
@@ -124,8 +110,22 @@ ROOT_URLCONF = 'SFT_API.urls'
 
 
 ACCOUNT_LOGIN_METHODS = {'username', 'email'}
-ACCOUNT_SIGNUP_FIELDS = ['email', 'username*', 'password1*', 'password2*']
 ACCOUNT_EMAIL_VERIFICATION = 'none'
+
+SIGNUP_FIELDS = {
+    'username': {
+        'required': True,
+    },
+    'email': {
+        'required': False,
+    },
+    'password1': {
+        'required': True,
+    },
+    'password2': {
+        'required': True, 
+    },
+}
 
 TEMPLATES = [
     {

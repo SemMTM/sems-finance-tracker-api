@@ -3,6 +3,7 @@ from rest_framework.exceptions import PermissionDenied
 from ..models.expenditure import Expenditure
 from ..serializers.expenditure import ExpenditureSerializer
 from core.utils.date_helpers import get_user_and_month_range
+from ..utils import generate_weekly_repeats
 
 
 class ExpenditureViewSet(viewsets.ModelViewSet):
@@ -22,7 +23,10 @@ class ExpenditureViewSet(viewsets.ModelViewSet):
         ).order_by('date')
 
     def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
+        instance = serializer.save(owner=self.request.user)
+
+        if instance.repeated == 'WEEKLY':
+            generate_weekly_repeats(instance)
 
     def get_object(self):
         """
