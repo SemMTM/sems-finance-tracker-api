@@ -31,3 +31,9 @@ class CustomUserSerializer(serializers.ModelSerializer):
 
 class ChangeEmailSerializer(serializers.Serializer):
     email = serializers.EmailField()
+
+    def validate_email(self, value):
+        # Ensure email is not already in use
+        if User.objects.filter(email=value).exists():
+            raise ValidationError("Email is already in use")
+        return value
