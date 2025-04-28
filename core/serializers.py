@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
+from django.core.exceptions import ValidationError
 import re
 
 
@@ -26,3 +27,13 @@ class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('username', 'email', 'first_name', 'last_name')
+
+
+class ChangeEmailSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        # Ensure email is not already in use
+        if User.objects.filter(email=value).exists():
+            raise ValidationError("Email is already in use")
+        return value
