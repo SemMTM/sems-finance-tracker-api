@@ -1,24 +1,36 @@
-from django.utils.timezone import now
+from django.utils.timezone import now, make_aware
 from datetime import timedelta
+from dateutil.relativedelta import relativedelta
 
 
 def get_user_and_month_range(request):
     """
     Returns a tuple: (user, start_of_month, end_of_month)
-    Based on the current user's timezone-aware request time.
+    - Uses ?month=YYYY-MM if provided in the query string
+    - Defaults to current month if not specified
+    - Ensures timezone-aware datetime output
     """
     user = request.user
-    current_date = now()
+    month_param = request.query_params.get("month")
 
-    start_of_month = current_date.replace(
-        day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    if start_of_month.month == 12:
-        end_of_month = start_of_month.replace(
-            year=start_of_month.year + 1, month=1)
+    if month_param:
+        try:
+            # Parse naive datetime from YYYY-MM string
+            naive_start = datetime.strptime(month_param, "%Y-%m")
+            # Convert to timezone-aware and standardize time to 00:00
+            start_of_month = make_aware(naive_start.replace(
+                day=1, hour=0, minute=0, second=0, microsecond=0))
+        except ValueError:
+            # Fallback if parsing fails
+            start_of_month = now().replace(
+                day=1, hour=0, minute=0, second=0, microsecond=0)
     else:
-        end_of_month = start_of_month.replace(
-            month=start_of_month.month + 1)
+        # Default to current month
+        start_of_month = now().replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    # Add 1 month to get exclusive end boundary
+    end_of_month = start_of_month + relativedelta(months=1)
 
     return user, start_of_month, end_of_month
 

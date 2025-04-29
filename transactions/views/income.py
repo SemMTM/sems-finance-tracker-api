@@ -54,7 +54,8 @@ class IncomeViewSet(viewsets.ModelViewSet):
         """
         obj = super().get_object()
         if obj.owner != self.request.user:
-            raise PermissionDenied("You do not have permission to access this income entry.")
+            raise PermissionDenied(
+                "You do not have permission to access this income entry.")
         return obj
 
     def perform_update(self, serializer):
