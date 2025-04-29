@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions
+from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
 from ..models.expenditure import Expenditure
 from ..serializers.expenditure import ExpenditureSerializer
@@ -37,3 +38,19 @@ class ExpenditureViewSet(viewsets.ModelViewSet):
             raise PermissionDenied(
                 "You do not have permission to access this expenditure.")
         return obj
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        # Check if it's part of a repeat group
+        if instance.repeated == 'WEEKLY' and instance.repeat_group_id:
+            # Delete this instance and all future ones in the same group
+            Expenditure.objects.filter(
+                owner=request.user,
+                repeat_group_id=instance.repeat_group_id,
+                date__gte=instance.date
+            ).delete()
+            return Response(status=204)
+
+        # Otherwise, just delete the single instance
+        return super().destroy(request, *args, **kwargs)

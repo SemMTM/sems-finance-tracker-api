@@ -1,6 +1,7 @@
 from datetime import timedelta
 from calendar import monthrange
 from .models import Expenditure
+import uuid
 
 
 def generate_weekly_repeats(instance):
@@ -10,6 +11,10 @@ def generate_weekly_repeats(instance):
     original_date = instance.date
     year = original_date.year
     month = original_date.month
+
+    if not instance.repeat_group_id:
+        instance.repeat_group_id = uuid.uuid4()
+        instance.save(update_fields=["repeat_group_id"])
 
     # Get the last day of the month
     last_day = monthrange(year, month)[1]
@@ -30,7 +35,8 @@ def generate_weekly_repeats(instance):
             title=instance.title,
             amount=instance.amount,
             date=date,
-            repeated=instance.repeated
+            repeated=instance.repeated,
+            repeat_group_id=instance.repeat_group_id
         )
         for date in new_dates
     ]

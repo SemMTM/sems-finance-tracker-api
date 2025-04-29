@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+import uuid
 from .shared import REPEATED_CHOICES, TYPE
 
 
@@ -14,6 +15,8 @@ class Expenditure(models.Model):
     repeated = models.CharField(choices=REPEATED_CHOICES, default='NEVER')
     type = models.CharField(choices=TYPE, default='BILL')
     date = models.DateTimeField(blank=False)
+    repeat_group_id = models.UUIDField(
+        null=True, blank=True, db_index=True)
 
     def __str__(self):
         return f"{self.owner} Expenditure: {self.title} - {self.amount}"
