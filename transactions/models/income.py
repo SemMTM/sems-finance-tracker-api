@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from .shared import REPEATED_CHOICES
 from core.utils.date_helpers import get_user_and_month_range
 from datetime import timedelta
+import uuid
 
 
 class Income(models.Model):
@@ -14,6 +15,7 @@ class Income(models.Model):
     amount = models.PositiveIntegerField(blank=False)
     date = models.DateTimeField(blank=False)
     repeated = models.CharField(choices=REPEATED_CHOICES, default='NEVER')
+    repeat_group_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     def __str__(self):
         return f"{self.owner} Income: {self.title} - {self.amount}"
