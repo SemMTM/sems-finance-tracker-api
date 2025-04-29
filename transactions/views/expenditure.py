@@ -54,3 +54,18 @@ class ExpenditureViewSet(viewsets.ModelViewSet):
 
         # Otherwise, just delete the single instance
         return super().destroy(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+
+        # If it's part of a weekly repeat group, update this and all future entries
+        if instance.repeated == 'WEEKLY' and instance.repeat_group_id:
+            Expenditure.objects.filter(
+                owner=self.request.user,
+                repeat_group_id=instance.repeat_group_id,
+                date__gte=instance.date
+            ).exclude(id=instance.id).update(
+                title=instance.title,
+                amount=instance.amount,
+                type=instance.type
+            )
