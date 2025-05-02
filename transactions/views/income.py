@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from ..models.income import Income
 from ..serializers.income import IncomeSerializer
 from core.utils.date_helpers import get_user_and_month_range
-from ..utils import generate_weekly_income_repeats
+from ..utils import generate_weekly_income_repeats, process_monthly_repeats
 
 
 class IncomeViewSet(viewsets.ModelViewSet):
@@ -20,6 +20,7 @@ class IncomeViewSet(viewsets.ModelViewSet):
         Return this user's income entries for the current month.
         """
         user, start, end = get_user_and_month_range(self.request)
+        process_monthly_repeats(user, Income, start)
 
         return Income.objects.filter(
             owner=user,

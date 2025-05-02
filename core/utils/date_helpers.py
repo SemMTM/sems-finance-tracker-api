@@ -11,7 +11,7 @@ def get_user_and_month_range(request):
     - Ensures timezone-aware datetime output
     """
     user = request.user
-    month_param = request.query_params.get("month")
+    month_param = request.GET.get("month")
 
     if month_param:
         try:
