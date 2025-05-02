@@ -14,6 +14,9 @@ class DisposableIncomeBudget(models.Model):
     def __str__(self):
         return f"{self.owner} Budget: {self.amount}"
 
+    class Meta:
+        unique_together = ('owner', 'date')
+
 
 class DisposableIncomeSpending(models.Model):
     """
