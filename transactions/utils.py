@@ -92,17 +92,12 @@ def process_monthly_repeats(user, model, current_month_start):
         day=monthrange(last_month_start.year, last_month_start.month)[1]
     )
 
-    print(Income.objects.filter(owner=user).values("title", "date", "repeated"))
-
     repeated_items = model.objects.filter(
         owner=user,
         date__gte=last_month_start,
         date__lte=last_month_end,
         repeated__in=["MONTHLY", "WEEKLY"]
     )
-
-    print(f"Processing monthly repeats for {user.username}, month: {current_month_start}")
-    print(f"Found {repeated_items.count()} repeated entries")
 
     for item in repeated_items:
         if item.repeated == "MONTHLY":
