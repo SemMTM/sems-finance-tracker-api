@@ -62,12 +62,17 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
-CORS_ALLOW_CREDENTIALS = False
+CORS_ALLOW_CREDENTIALS = True
 
 DEV = os.getenv('DEV')
 
 REST_AUTH = {
     'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'accessToken',
+    'JWT_AUTH_REFRESH_COOKIE': 'refreshToken',
+    'JWT_AUTH_SAMESITE': 'Lax',
+    'JWT_AUTH_SECURE': not DEBUG,
+    'JWT_AUTH_HTTPONLY': True
 }
 
 if DEBUG:
@@ -87,6 +92,7 @@ else:
             'rest_framework.renderers.JSONRenderer',
         ],
         'DEFAULT_AUTHENTICATION_CLASSES': [
+            'dj_rest_auth.jwt_auth.JWTCookieAuthentication',
             'rest_framework_simplejwt.authentication.JWTAuthentication',
         ],
         'DEFAULT_PERMISSION_CLASSES': (
