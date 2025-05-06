@@ -4,7 +4,8 @@ from rest_framework.exceptions import PermissionDenied
 from ..models.expenditure import Expenditure
 from ..serializers.expenditure import ExpenditureSerializer
 from core.utils.date_helpers import get_user_and_month_range
-from ..utils import generate_weekly_repeats, process_monthly_repeats
+from ..utils import (generate_weekly_repeats_for_6_months,
+                     generate_monthly_repeats_for_6_months)
 
 
 class ExpenditureViewSet(viewsets.ModelViewSet):
@@ -16,7 +17,6 @@ class ExpenditureViewSet(viewsets.ModelViewSet):
         Return this user's expenditures for the current month only.
         """
         user, start, end = get_user_and_month_range(self.request)
-        process_monthly_repeats(user, Expenditure, start)
 
         return Expenditure.objects.filter(
             owner=user,
@@ -27,8 +27,11 @@ class ExpenditureViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         instance = serializer.save(owner=self.request.user)
 
+        # Check if instance is repeated weekly or monthly
         if instance.repeated == 'WEEKLY':
-            generate_weekly_repeats(instance)
+            generate_weekly_repeats_for_6_months(instance, Expenditure)
+        elif instance.repeated == 'MONTHLY':
+            generate_monthly_repeats_for_6_months(instance, Expenditure)
 
     def get_object(self):
         """
@@ -71,3 +74,4 @@ class ExpenditureViewSet(viewsets.ModelViewSet):
                 amount=instance.amount,
                 type=instance.type
             )
+
