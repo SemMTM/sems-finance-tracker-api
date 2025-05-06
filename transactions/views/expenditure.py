@@ -34,7 +34,8 @@ class ExpenditureViewSet(viewsets.ModelViewSet):
         """
         Ensures the user only accesses their own object.
         """
-        obj = super().get_object()
+        obj = Expenditure.objects.get(pk=self.kwargs['pk'])
+
         if obj.owner != self.request.user:
             raise PermissionDenied(
                 "You do not have permission to access this expenditure.")
@@ -43,18 +44,18 @@ class ExpenditureViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
 
-        # Check if it's part of a repeat group
-        if instance.repeated == 'WEEKLY' and instance.repeat_group_id:
-            # Delete this instance and all future ones in the same group
-            Expenditure.objects.filter(
+        # If repeated, delete all future entries in the same repeat group
+        if instance.repeated in ['WEEKLY', 'MONTHLY'] and instance.repeat_group_id:
+            future_entries = Expenditure.objects.filter(
                 owner=request.user,
                 repeat_group_id=instance.repeat_group_id,
                 date__gte=instance.date
-            ).delete()
-            return Response(status=204)
+            )
+            future_entries.delete()
+        else:
+            instance.delete()
 
-        # Otherwise, just delete the single instance
-        return super().destroy(request, *args, **kwargs)
+        return Response(status=204)
 
     def perform_update(self, serializer):
         instance = serializer.save()
