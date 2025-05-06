@@ -39,21 +39,25 @@ class IncomeViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
 
-        if instance.repeated == 'WEEKLY' and instance.repeat_group_id:
-            Income.objects.filter(
+        # If repeated, delete all future entries in the same repeat group
+        if instance.repeated in ['WEEKLY', 'MONTHLY'] and instance.repeat_group_id:
+            future_entries = Income.objects.filter(
                 owner=request.user,
                 repeat_group_id=instance.repeat_group_id,
                 date__gte=instance.date
-            ).delete()
-            return Response(status=204)
+            )
+            future_entries.delete()
+        else:
+            instance.delete()
 
-        return super().destroy(request, *args, **kwargs)
+        return Response(status=204)
 
     def get_object(self):
         """
         Restrict object-level access to the owner only.
         """
-        obj = super().get_object()
+        obj = Income.objects.get(pk=self.kwargs['pk'])
+
         if obj.owner != self.request.user:
             raise PermissionDenied(
                 "You do not have permission to access this income entry.")
