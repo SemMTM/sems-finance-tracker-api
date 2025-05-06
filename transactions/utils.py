@@ -1,6 +1,6 @@
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
-from calendar import monthrange
+from calendar import monthrange, monthcalendar
 import uuid
 
 
@@ -81,6 +81,7 @@ def generate_6th_month_repeats(model_class, user, current_month):
     by checking the 5th month (current + 4) for anything with a repeated flag.
     Adds 1 month to each and ensures no duplicates.
     """
+
     # Calculate 5th and 6th month boundaries
     fifth_month = current_month + relativedelta(months=4)
     sixth_month = current_month + relativedelta(months=5)
@@ -91,47 +92,84 @@ def generate_6th_month_repeats(model_class, user, current_month):
 
     sixth_start = sixth_month.replace(day=1)
     sixth_end = sixth_start.replace(
-        day=monthrange(sixth_start.year, sixth_start.month)[1])
+        day=monthrange(sixth_month.year, sixth_month.month)[1])
 
-    # Get all repeatable entries from 5th month
+    new_entries = []
+
+    # 1. Monthly repeats (unchanged)
     repeated_entries = model_class.objects.filter(
         owner=user,
-        repeated__in=['WEEKLY', 'MONTHLY'],
+        repeated='MONTHLY',
         date__gte=fifth_start,
         date__lte=fifth_end
     )
 
-    new_entries = []
-
     for entry in repeated_entries:
-        # Add 1 month
-        proposed_date = entry.date + relativedelta(months=1)
+        base_date = entry.date
+        new_date = base_date + relativedelta(months=1)
 
-        # Adjust day if it overflows the target month
-        last_day = monthrange(proposed_date.year, proposed_date.month)[1]
-        if proposed_date.day > last_day:
-            proposed_date = proposed_date.replace(day=last_day)
+        if new_date.month == sixth_month.month and new_date.year == sixth_month.year:
+            new_day = min(base_date.day, monthrange(sixth_month.year, sixth_month.month)[1])
+            new_date = new_date.replace(day=new_day)
 
-        # Only create if not already present
-        exists = model_class.objects.filter(
+            if not model_class.objects.filter(
+                owner=user,
+                repeat_group_id=entry.repeat_group_id,
+                date=new_date
+            ).exists():
+                kwargs = {
+                    'owner': user,
+                    'title': entry.title,
+                    'amount': entry.amount,
+                    'date': new_date,
+                    'repeated': entry.repeated,
+                    'repeat_group_id': entry.repeat_group_id,
+                }
+                if hasattr(entry, 'type'):
+                    kwargs['type'] = entry.type
+                new_entries.append(model_class(**kwargs))
+
+    # 2. Weekly repeats (new logic: repeat from last entry in 5th month)
+    group_ids = model_class.objects.filter(
+        owner=user,
+        repeated='WEEKLY',
+        date__gte=fifth_start,
+        date__lte=fifth_end,
+        repeat_group_id__isnull=False
+    ).values_list('repeat_group_id', flat=True).distinct()
+
+    for group_id in group_ids:
+        last_entry = model_class.objects.filter(
             owner=user,
-            repeat_group_id=entry.repeat_group_id,
-            date=proposed_date
-        ).exists()
+            repeat_group_id=group_id,
+            date__gte=fifth_start,
+            date__lte=fifth_end
+        ).order_by('-date').first()
 
-        if not exists:
-            kwargs = {
-                'owner': user,
-                'title': entry.title,
-                'amount': entry.amount,
-                'date': proposed_date,
-                'repeated': entry.repeated,
-                'repeat_group_id': entry.repeat_group_id,
-            }
-            if hasattr(entry, 'type'):
-                kwargs['type'] = entry.type
+        if not last_entry:
+            continue
 
-            new_entries.append(model_class(**kwargs))
+        next_date = last_entry.date + timedelta(days=7)
+        while next_date <= sixth_end:
+            if not model_class.objects.filter(
+                owner=user,
+                repeat_group_id=group_id,
+                date=next_date
+            ).exists():
+                kwargs = {
+                    'owner': user,
+                    'title': last_entry.title,
+                    'amount': last_entry.amount,
+                    'date': next_date,
+                    'repeated': last_entry.repeated,
+                    'repeat_group_id': group_id,
+                }
+                if hasattr(last_entry, 'type'):
+                    kwargs['type'] = last_entry.type
+                new_entries.append(model_class(**kwargs))
 
+            next_date += timedelta(days=7)
+
+    # Bulk create all new entries
     if new_entries:
         model_class.objects.bulk_create(new_entries)
