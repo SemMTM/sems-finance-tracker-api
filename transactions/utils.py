@@ -30,7 +30,7 @@ def generate_weekly_repeats_for_6_months(instance, model_class):
             date=date,
             repeated=instance.repeated,
             repeat_group_id=instance.repeat_group_id,
-            type=getattr(instance, 'type', None),
+            **({'type': instance.type} if hasattr(instance, 'type') else {})
         ) for date in repeats
     ])
 
@@ -62,6 +62,6 @@ def generate_monthly_repeats_for_6_months(instance, model_class):
             date=date,
             repeated=instance.repeated,
             repeat_group_id=instance.repeat_group_id,
-            type=getattr(instance, 'type', None),
+            **({'type': instance.type} if hasattr(instance, 'type') else {})
         ) for date in repeats
     ])

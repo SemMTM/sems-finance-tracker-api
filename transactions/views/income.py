@@ -2,8 +2,11 @@ from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from ..models.income import Income
+import uuid
 from ..serializers.income import IncomeSerializer
 from core.utils.date_helpers import get_user_and_month_range
+from ..utils import (generate_weekly_repeats_for_6_months,
+                     generate_monthly_repeats_for_6_months)
 
 
 class IncomeViewSet(viewsets.ModelViewSet):
@@ -19,7 +22,6 @@ class IncomeViewSet(viewsets.ModelViewSet):
         Return this user's income entries for the current month.
         """
         user, start, end = get_user_and_month_range(self.request)
-        process_monthly_repeats(user, Income, start)
 
         return Income.objects.filter(
             owner=user,
@@ -31,7 +33,9 @@ class IncomeViewSet(viewsets.ModelViewSet):
         instance = serializer.save(owner=self.request.user)
 
         if instance.repeated == 'WEEKLY':
-            generate_weekly_income_repeats(instance)
+            generate_weekly_repeats_for_6_months(instance, Income)
+        elif instance.repeated == 'MONTHLY':
+            generate_monthly_repeats_for_6_months(instance, Income)
 
     from rest_framework.response import Response
 
@@ -65,12 +69,23 @@ class IncomeViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         instance = serializer.save()
 
-        if instance.repeated == 'WEEKLY' and instance.repeat_group_id:
-            Income.objects.filter(
+        # Only apply group updates if the entry is repeated
+        if instance.repeated in ['WEEKLY', 'MONTHLY'] and instance.repeat_group_id:
+            new_group_id = uuid.uuid4()
+
+            future_entries = Income.objects.filter(
                 owner=self.request.user,
-                repeat_group_id=instance.repeat_group_id,
-                date__gte=instance.date
-            ).exclude(id=instance.id).update(
+                repeat_group_id=serializer.instance.repeat_group_id,
+                date__gt=instance.date)
+
+            # Update the edited instance with the new group ID
+            instance.repeat_group_id = new_group_id
+            instance.save(update_fields=['repeat_group_id'])
+
+            # Update all future entries (same group, same user, after the edited date)
+            future_entries.update(
                 title=instance.title,
                 amount=instance.amount,
+                repeated=instance.repeated,
+                repeat_group_id=new_group_id
             )
