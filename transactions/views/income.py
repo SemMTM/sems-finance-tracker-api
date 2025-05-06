@@ -5,6 +5,7 @@ from ..models.income import Income
 import uuid
 from ..serializers.income import IncomeSerializer
 from core.utils.date_helpers import get_user_and_month_range
+from core.utils.month_watcher import run_month_rollover_logic
 from ..utils import (generate_weekly_repeats_for_6_months,
                      generate_monthly_repeats_for_6_months)
 
