@@ -39,7 +39,8 @@ class DisposableIncomeBudgetViewSet(viewsets.ModelViewSet):
         raise PermissionDenied("You cannot delete a budget.")
 
     def get_object(self):
-        obj = super().get_object()
+        obj = DisposableIncomeBudget.objects.get(pk=self.kwargs['pk'])
+
         if obj.owner != self.request.user:
             raise PermissionDenied(
                 "You do not have permission to access this budget.")
