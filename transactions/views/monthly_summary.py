@@ -1,4 +1,5 @@
-from core.utils.date_helpers import get_user_and_month_range
+from core.utils.date_helpers import (
+    get_user_and_month_range, get_weeks_in_month_clipped)
 from django.db.models import Sum
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -13,12 +14,13 @@ class MonthlySummaryView(APIView):
 
     def get(self, request):
         # 1. Get date range for the current month
-        user, start_date, end_date = get_user_and_month_range(request)
+        user, weeks, start_date, end_date = get_weeks_in_month_clipped(request)
 
         # 2. Fetch and sum incomes
         total_income = Income.objects.filter(
             owner=user,
-            date__range=(start_date, end_date)
+            date__gte=start_date,
+            date__lt=end_date
         ).aggregate(total=Sum('amount'))['total'] or 0
 
         # 3. Fetch and sum expenditures by type
@@ -26,7 +28,8 @@ class MonthlySummaryView(APIView):
             return Expenditure.objects.filter(
                 owner=user,
                 type=category,
-                date__range=(start_date, end_date)
+                date__gte=start_date,
+                date__lt=end_date
             ).aggregate(total=Sum('amount'))['total'] or 0
 
         bills_total = get_expenditure_total('BILL')
@@ -36,7 +39,8 @@ class MonthlySummaryView(APIView):
         # 4. Get disposable income spending
         disposable_spending = DisposableIncomeSpending.objects.filter(
             owner=user,
-            date__range=(start_date, end_date)
+            date__gte=start_date,
+            date__lt=end_date
         ).aggregate(total=Sum('amount'))['total'] or 0
 
         # 5. Get budget for the month

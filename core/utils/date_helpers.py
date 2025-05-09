@@ -47,9 +47,14 @@ def get_weeks_in_month_clipped(request):
 
     while current < end_of_month:
         week_start = current
-        week_end = week_start + timedelta(days=6 - week_start.weekday()) + timedelta(days=1)  # end is exclusive
-        week_end = min(week_end, end_of_month)
-        weeks.append((week_start, week_end))
+
+        # Week ends Sunday, but clipped to not go past end_of_month
+        week_end = min(week_start + timedelta(
+            days=6 - week_start.weekday() + 1), end_of_month)
+        
+        # Only include the week if it falls at least partially inside the month
+        if week_start < end_of_month:
+            weeks.append((week_start, week_end))
         current = week_end
 
     return user, weeks, start_of_month, end_of_month
