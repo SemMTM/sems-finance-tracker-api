@@ -12,11 +12,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 
 DEBUG = 'DEV' in os.environ
 
-ALLOWED_HOSTS = [
-    os.getenv("ALLOWED_HOSTS", "").split(","),
-    "127.0.0.1",
-    'localhost'
-]
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",") + ["127.0.0.1", "localhost"]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -129,7 +125,7 @@ SIGNUP_FIELDS = {
         'required': True,
     },
     'password2': {
-        'required': True, 
+        'required': True,
     },
 }
 
