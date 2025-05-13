@@ -6,6 +6,7 @@ class Currency(models.Model):
     """
     Represents a user's selected currency preference.
     """
+
     CURRENCY_TYPE_CHOICES = [
         ('USD', 'US Dollar $'),
         ('EUR', 'Euro €'),
@@ -19,9 +20,16 @@ class Currency(models.Model):
         ('INR', 'Indian Rupee ₹'),
     ]
 
-    owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    owner = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='currency'
+    )
     currency = models.CharField(
-        choices=CURRENCY_TYPE_CHOICES, default="GBP")
+        choices=CURRENCY_TYPE_CHOICES,
+        default="GBP",
+        help_text='Three-letter ISO currency code.'
+    )
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.owner.username}'s Currency: {self.currency}"
