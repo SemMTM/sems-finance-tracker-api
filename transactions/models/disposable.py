@@ -29,7 +29,7 @@ class DisposableIncomeBudget(models.Model):
 
     def __str__(self) -> str:
         return f"{
-            self.owner.username}'s Budget for {self.date.date()}: {self.amount}"
+            self.owner.username}'s Budget for  {self.date.date()}: {self.amount}"
 
 
 class DisposableIncomeSpending(models.Model):

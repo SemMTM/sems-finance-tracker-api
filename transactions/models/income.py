@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from .shared import REPEATED_CHOICES
-import uuid
+import uuid  # noqa
 
 
 class Income(models.Model):
@@ -44,7 +44,8 @@ class Income(models.Model):
         null=True,
         blank=True,
         db_index=True,
-        help_text="ID for grouping repeated incomes (used for bulk updates/deletes)."
+        help_text="ID for grouping repeated "
+        "incomes (used for bulk updates/deletes)."
     )
 
     class Meta:
@@ -54,13 +55,3 @@ class Income(models.Model):
 
     def __str__(self) -> str:
         return f"{self.owner.username} Income: {self.title} - {self.amount}"
-
-    def repeat_income(self, month_start_date, month_end_date) -> None:
-        """
-        Generate repeated income entries between the given date range,
-        based on the repetition frequency.
-        """
-        if self.repeated == 'WEEKLY':
-            self._repeat_weekly(month_start_date, month_end_date)
-        elif self.repeated == 'MONTHLY':
-            self._repeat_monthly(month_start_date, month_end_date)

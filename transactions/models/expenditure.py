@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
-import uuid
+import uuid  # noqa
 from .shared import REPEATED_CHOICES, TYPE
 
 
