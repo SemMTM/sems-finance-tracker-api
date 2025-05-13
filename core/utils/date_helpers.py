@@ -1,7 +1,7 @@
 from django.utils.timezone import now, make_aware
+from django.http import HttpRequest
 from datetime import timedelta, datetime
 from dateutil.relativedelta import relativedelta
-from django.http import HttpRequest
 
 
 def get_user_and_month_range(request: HttpRequest):
