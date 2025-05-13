@@ -1,5 +1,6 @@
 from transactions.models.currency import Currency
 
+
 CURRENCY_SYMBOLS = {
     'USD': '$',
     'EUR': '€',
@@ -23,9 +24,17 @@ def get_currency_symbol(code: str) -> str:
 
 
 def get_user_currency_symbol(request, default='GBP'):
+    """
+    Get the authenticated user's selected currency symbol.
+
+    Returns:
+        str: The user's selected currency symbol, or the default
+        if unauthenticated or not set.
+    """
     if not request or not request.user.is_authenticated:
         return get_currency_symbol(default)
 
-    user_currency = Currency.objects.filter(owner=request.user).first()
-    return get_currency_symbol(
-        user_currency.currency if user_currency else default)
+    user_currency = Currency.objects.only("currency").filter(
+        owner=request.user).first()
+    selected_code = user_currency.currency if user_currency else default
+    return get_currency_symbol(selected_code)
