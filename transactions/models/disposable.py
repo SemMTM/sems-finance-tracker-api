@@ -14,9 +14,11 @@ class DisposableIncomeBudget(models.Model):
     )
     amount = models.PositiveIntegerField(
         default=0,
+        blank=False,
         help_text="Budget amount in pence."
     )
     date = models.DateTimeField(
+        blank=False,
         help_text="First day of the month this budget applies to."
     )
 
@@ -24,10 +26,10 @@ class DisposableIncomeBudget(models.Model):
         unique_together = ('owner', 'date')
         ordering = ['-date']
         verbose_name = "Disposable Income Budget"
-        verbose_name_plural = "Disposable Income Budgets"
 
     def __str__(self) -> str:
-        return f"{self.owner.username}'s Budget for {self.date.date()}: {self.amount}"
+        return f"{
+            self.owner.username}'s Budget for {self.date.date()}: {self.amount}"
 
 
 class DisposableIncomeSpending(models.Model):
@@ -41,19 +43,20 @@ class DisposableIncomeSpending(models.Model):
     )
     title = models.CharField(
         max_length=100,
+        blank=False,
         help_text="Short description of the expenditure."
     )
     amount = models.PositiveIntegerField(
         help_text="Amount spent in pence."
     )
     date = models.DateTimeField(
+        blank=False,
         help_text="Date and time of the spending entry."
     )
 
     class Meta:
         ordering = ['-date']
         verbose_name = "Disposable Income Spending"
-        verbose_name_plural = "Disposable Income Spendings"
 
     def __str__(self):
         return f"{self.owner.username} spent {self.amount} on {self.title} ({self.date.date()})"

@@ -33,10 +33,12 @@ class Expenditure(models.Model):
     repeated = models.CharField(
         choices=REPEATED_CHOICES,
         default='NEVER',
+        blank=False,
         help_text="Repetition frequency (e.g., NEVER, MONTHLY)."
     )
     type = models.CharField(
         choices=TYPE,
+        blank=False,
         default='BILL',
         help_text="Type/category of expenditure."
     )
