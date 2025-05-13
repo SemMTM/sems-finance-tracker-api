@@ -12,6 +12,8 @@ SECRET_KEY = os.environ.get("SECRET_KEY")
 
 DEBUG = 'DEV' in os.environ
 
+DEV = os.getenv('DEV')
+
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",") + ["127.0.0.1", "localhost"]
 
 INSTALLED_APPS = [
@@ -60,11 +62,11 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
 CORS_ALLOW_CREDENTIALS = True
 
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SAMESITE = 'Lax'
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_HTTPONLY = True
+SECURE_SSL_REDIRECT = not DEBUG
+SESSION_COOKIE_HTTPONLY = not DEBUG
 SESSION_COOKIE_SAMESITE = 'Lax'
 
 # HSTS Security Settings
@@ -77,13 +79,11 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
-DEV = os.getenv('DEV')
-
 REST_AUTH = {
     'USE_JWT': True,
     'JWT_AUTH_COOKIE': 'accessToken',
     'JWT_AUTH_REFRESH_COOKIE': 'refreshToken',
-    'JWT_AUTH_SAMESITE': 'None',
+    'JWT_AUTH_SAMESITE': 'Lax',
     'JWT_AUTH_SECURE': not DEBUG,
     'JWT_AUTH_HTTPONLY': True
 }

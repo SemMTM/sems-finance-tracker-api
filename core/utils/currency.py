@@ -27,4 +27,5 @@ def get_user_currency_symbol(request, default='GBP'):
         return get_currency_symbol(default)
 
     user_currency = Currency.objects.filter(owner=request.user).first()
-    return get_currency_symbol(user_currency.currency if user_currency else default)
+    return get_currency_symbol(
+        user_currency.currency if user_currency else default)
