@@ -13,7 +13,6 @@ class CustomUserSerializer(serializers.ModelSerializer):
     - Max 40 characters
     - Case-insensitive uniqueness check
     """
-
     def validate_username(self, value):
         # 1. Allowed characters: letters, numbers, hyphens, underscores
         if not re.match(r'^[a-zA-Z0-9_-]+$', value):
