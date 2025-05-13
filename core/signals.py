@@ -5,7 +5,8 @@ from .models import UserProfile
 
 
 @receiver(post_save, sender=User)
-def create_user_profile(sender, instance: User, created: bool, **kwargs) -> None:
+def create_user_profile(
+    sender, instance: User, created: bool, **kwargs) -> None:
     """
     Signal receiver that creates a UserProfile whenever a new User is created.
 
