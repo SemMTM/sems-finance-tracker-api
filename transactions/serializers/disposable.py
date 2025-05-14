@@ -79,12 +79,22 @@ class DisposableIncomeBudgetSerializer(serializers.ModelSerializer):
 
 
 class DisposableIncomeSpendingSerializer(serializers.ModelSerializer):
+    """
+    Serializer for a single spending entry deducted from
+    a user's disposable income.
+    Converts pounds to pence on input, and returns
+    formatted amounts with currency symbols.
+    """
     owner = serializers.ReadOnlyField(source='owner.username')
     is_owner = serializers.SerializerMethodField()
     formatted_amount = serializers.SerializerMethodField()
     readable_date = serializers.SerializerMethodField()
     amount = serializers.DecimalField(
-        max_digits=10, decimal_places=2, write_only=True)
+        max_digits=10,
+        decimal_places=2,
+        write_only=True,
+        help_text="Amount in pounds; will be stored in pence."
+    )
 
     class Meta:
         model = DisposableIncomeSpending
@@ -95,20 +105,28 @@ class DisposableIncomeSpendingSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['owner']
 
-    def get_is_owner(self, obj):
+    def get_is_owner(self, obj) -> bool:
         request = self.context.get('request')
-        return request.user == obj.owner if request else False
+        return bool(request and request.user == obj.owner)
 
-    def get_formatted_amount(self, obj):
+    def get_formatted_amount(self, obj) -> str:
+        """
+        Returns the amount formatted as a string with currency symbol.
+        Example: £23.00
+        """
         symbol = get_user_currency_symbol(self.context.get('request'))
         return f"{symbol}{obj.amount / 100:.2f}"
 
-    def get_readable_date(self, obj):
+    def get_readable_date(self, obj) -> str:
+        """
+        Returns the date in a human-readable format.
+        Example: "April 12, 2025"
+        """
         return obj.date.strftime('%B %d, %Y')
 
     def to_internal_value(self, data):
         """
-        Convert pounds (with decimals) to pence (int) before saving.
+        Convert pounds (as decimal) to pence (as integer) before saving.
         """
         data = super().to_internal_value(data)
         data['amount'] = int(
