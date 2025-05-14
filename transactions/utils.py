@@ -1,4 +1,5 @@
-from datetime import timedelta
+from datetime import timedelta, time
+from django.utils.timezone import make_aware
 from dateutil.relativedelta import relativedelta
 from calendar import monthrange
 import uuid
@@ -52,28 +53,38 @@ def generate_monthly_repeats_for_6_months(instance, model_class):
     _bulk_create_repeats(instance, model_class, repeats)
 
 
+from datetime import datetime, timedelta, time
+from dateutil.relativedelta import relativedelta
+from calendar import monthrange
+from django.utils.timezone import make_aware
+
+
 def generate_6th_month_repeats(model_class, user, current_month):
     """
-    For the 6th visible month (current + 5), generate repeat entries
-    by checking the 5th month (current + 4) for anything with a repeated flag.
-    Adds 1 month to each and ensures no duplicates.
+    Generate repeated entries for the 6th visible month (current + 5)
+    by checking existing repeated entries in the 5th month (current + 4).
+    Avoids duplicate generation. Handles both weekly and monthly types.
     """
-
-    # Calculate 5th and 6th month boundaries
+    # Define 5th and 6th months
     fifth_month = current_month + relativedelta(months=4)
     sixth_month = current_month + relativedelta(months=5)
 
-    fifth_start = fifth_month.replace(day=1)
-    fifth_end = fifth_start.replace(
-        day=monthrange(fifth_start.year, fifth_start.month)[1])
+    # Get timezone-aware datetime bounds for both
+    fifth_start = make_aware(datetime.combine(
+        fifth_month.replace(day=1), time.min))
+    fifth_end = make_aware(datetime.combine(
+        fifth_month.replace(day=monthrange(fifth_month.year, fifth_month.month)[1]),
+        time.min
+    ))
 
-    sixth_start = sixth_month.replace(day=1)
-    sixth_end = sixth_start.replace(
-        day=monthrange(sixth_month.year, sixth_month.month)[1])
+    sixth_end = make_aware(datetime.combine(
+        sixth_month.replace(day=monthrange(sixth_month.year, sixth_month.month)[1]),
+        time.min
+    ))
 
     new_entries = []
 
-    # 1. Monthly repeats
+    # ---- 1. Monthly repeats ----
     monthly_entries = model_class.objects.filter(
         owner=user,
         repeated='MONTHLY',
@@ -83,8 +94,8 @@ def generate_6th_month_repeats(model_class, user, current_month):
 
     for entry in monthly_entries:
         new_date = entry.date + relativedelta(months=1)
-        last_day = monthrange(new_date.year, new_date.month)[1]
-        new_date = new_date.replace(day=min(entry.date.day, last_day))
+        max_day = monthrange(new_date.year, new_date.month)[1]
+        new_date = new_date.replace(day=min(entry.date.day, max_day))
 
         if not model_class.objects.filter(
             owner=user,
@@ -93,7 +104,7 @@ def generate_6th_month_repeats(model_class, user, current_month):
         ).exists():
             new_entries.append(_clone_entry(entry, new_date))
 
-    # 2. Weekly repeats
+    # ---- 2. Weekly repeats ----
     group_ids = model_class.objects.filter(
         owner=user,
         repeated='WEEKLY',
@@ -123,7 +134,7 @@ def generate_6th_month_repeats(model_class, user, current_month):
                 new_entries.append(_clone_entry(last_entry, next_date))
             next_date += timedelta(days=7)
 
-    # Bulk create all new entries
+    # ---- 3. Create all entries at once ----
     if new_entries:
         model_class.objects.bulk_create(new_entries)
 

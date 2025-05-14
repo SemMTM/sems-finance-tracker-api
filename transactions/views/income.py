@@ -43,8 +43,8 @@ class IncomeViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         """
-        Deletes a single income or all future repeated
-        entries in the same group.
+        Deletes a single income or all future repeated entries in the
+        same group.
         """
         instance = self.get_object()
 
@@ -67,17 +67,14 @@ class IncomeViewSet(viewsets.ModelViewSet):
         """
         Restrict object-level access to the owner only.
         """
-        obj = super().get_object()
+        obj = Income.objects.get(pk=self.kwargs['pk'])
+
         if obj.owner != self.request.user:
             raise PermissionDenied(
                 "You do not have permission to access this income entry.")
         return obj
 
     def perform_update(self, serializer):
-        """
-        Updates the income and propagates the change to all future
-        repeated entries.
-        """
         instance = serializer.save()
 
         # Only apply group updates if the entry is repeated

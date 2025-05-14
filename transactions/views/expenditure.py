@@ -48,7 +48,7 @@ class ExpenditureViewSet(viewsets.ModelViewSet):
         """
         Ensures the current user is the owner of the expenditure.
         """
-        obj = super().get_object()
+        obj = obj = Expenditure.objects.get(pk=self.kwargs['pk'])
         if obj.owner != self.request.user:
             raise PermissionDenied(
                 "You do not have permission to access this expenditure.")

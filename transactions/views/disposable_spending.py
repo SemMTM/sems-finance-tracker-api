@@ -38,7 +38,7 @@ class DisposableIncomeSpendingViewSet(viewsets.ModelViewSet):
         """
         Ensures that only the owner can access the spending entry.
         """
-        obj = super().get_object()
+        obj = obj = DisposableIncomeSpending.objects.get(pk=self.kwargs['pk'])
         if obj.owner != self.request.user:
             raise PermissionDenied(
                 "You do not have permission to access this entry.")

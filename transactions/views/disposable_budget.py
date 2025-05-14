@@ -56,7 +56,7 @@ class DisposableIncomeBudgetViewSet(viewsets.ModelViewSet):
         Ensures that the user only accesses their own budget instance.
         """
 
-        obj = super().get_object()
+        obj = obj = DisposableIncomeBudget.objects.get(pk=self.kwargs['pk'])
         if obj.owner != self.request.user:
             raise PermissionDenied(
                 "You do not have permission to access this budget.")
