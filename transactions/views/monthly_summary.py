@@ -1,47 +1,43 @@
-from core.utils.date_helpers import (
-    get_user_and_month_range, get_weeks_in_month_clipped)
 from django.db.models import Sum
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from transactions.models import (
-    Income, Expenditure, DisposableIncomeSpending, DisposableIncomeBudget)
+    Income,
+    Expenditure,
+    DisposableIncomeSpending,
+    DisposableIncomeBudget
+)
 from transactions.serializers.monthly_summary import MonthlySummarySerializer
+from core.utils.date_helpers import get_weeks_in_month_clipped
 
 
 class MonthlySummaryView(APIView):
+    """
+    API view that returns a monthly summary of all financial categories
+    (income, spending, saving, investment, and disposable tracking)
+    for the authenticated user.
+    """
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        # 1. Get date range for the current month
+    def get(self, request) -> Response:
+        # 1. Extract user and date range
         user, weeks, start_date, end_date = get_weeks_in_month_clipped(request)
 
-        # 2. Fetch and sum incomes
-        total_income = Income.objects.filter(
-            owner=user,
-            date__gte=start_date,
-            date__lt=end_date
-        ).aggregate(total=Sum('amount'))['total'] or 0
+        # 2. Aggregate income total
+        total_income = self._get_total(Income, user, start_date, end_date)
 
-        # 3. Fetch and sum expenditures by type
-        def get_expenditure_total(category):
-            return Expenditure.objects.filter(
-                owner=user,
-                type=category,
-                date__gte=start_date,
-                date__lt=end_date
-            ).aggregate(total=Sum('amount'))['total'] or 0
-
-        bills_total = get_expenditure_total('BILL')
-        saving_total = get_expenditure_total('SAVING')
-        investment_total = get_expenditure_total('INVESTMENT')
+        # 3. Aggregate expenditures by type
+        bills_total = self._get_total(
+            Expenditure, user, start_date, end_date, type='BILL')
+        saving_total = self._get_total(
+            Expenditure, user, start_date, end_date, type='SAVING')
+        investment_total = self._get_total(
+            Expenditure, user, start_date, end_date, type='INVESTMENT')
 
         # 4. Get disposable income spending
-        disposable_spending = DisposableIncomeSpending.objects.filter(
-            owner=user,
-            date__gte=start_date,
-            date__lt=end_date
-        ).aggregate(total=Sum('amount'))['total'] or 0
+        disposable_spending = self._get_total(
+            DisposableIncomeSpending, user, start_date, end_date)
 
         # 5. Get budget for the month
         budget = DisposableIncomeBudget.objects.filter(
@@ -51,11 +47,13 @@ class MonthlySummaryView(APIView):
         ).first()
         budget_amount = budget.amount if budget else 0
 
-        # 6. Calculate total and remaining disposable
+        # 6. Summary calculations
         total = total_income - (
-            bills_total + saving_total + investment_total + disposable_spending)
+            bills_total + saving_total + investment_total +
+            disposable_spending)
         remaining_disposable = budget_amount - disposable_spending
 
+        # 7. Build and return formatted response
         raw_data = {
             'income': total_income,
             'bills': bills_total,
@@ -69,3 +67,15 @@ class MonthlySummaryView(APIView):
         serializer = MonthlySummarySerializer(
             raw_data, context={'request': request})
         return Response(serializer.data)
+
+    def _get_total(self, model, user, start, end, **filters) -> int:
+        """
+        Aggregates the total 'amount' for a given model, user, and time range.
+        Optionally filters by expenditure type.
+        """
+        return model.objects.filter(
+            owner=user,
+            date__gte=start,
+            date__lt=end,
+            **filters
+        ).aggregate(total=Sum('amount')).get('total') or 0

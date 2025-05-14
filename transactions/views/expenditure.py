@@ -63,8 +63,10 @@ class ExpenditureViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
 
         # If repeated, delete all future entries in the same repeat group
-        if (instance.repeated in ['WEEKLY', 'MONTHLY']
-                and instance.repeat_group_id):
+        if (
+            instance.repeated in ['WEEKLY', 'MONTHLY']
+            and instance.repeat_group_id
+        ):
             Expenditure.objects.filter(
                 owner=request.user,
                 repeat_group_id=instance.repeat_group_id,
@@ -84,8 +86,10 @@ class ExpenditureViewSet(viewsets.ModelViewSet):
         instance = serializer.save()
 
         # Only apply group updates if the entry is repeated
-        if (instance.repeated in ['WEEKLY', 'MONTHLY']
-                and instance.repeat_group_id):
+        if (
+            instance.repeated in ['WEEKLY', 'MONTHLY']
+            and instance.repeat_group_id
+        ):
             new_group_id = uuid.uuid4()
 
             # Update the edited instance with the new group ID
