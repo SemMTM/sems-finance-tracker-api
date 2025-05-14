@@ -1,10 +1,10 @@
 from rest_framework import serializers
+from django.db.models import Sum
+from decimal import Decimal
 from ..models.disposable import (
     DisposableIncomeBudget, DisposableIncomeSpending)
-from decimal import Decimal
 from core.utils.currency import get_user_currency_symbol
 from core.utils.date_helpers import get_user_and_month_range
-from django.db.models import Sum
 
 
 class DisposableIncomeBudgetSerializer(serializers.ModelSerializer):
@@ -28,7 +28,7 @@ class DisposableIncomeBudgetSerializer(serializers.ModelSerializer):
     class Meta:
         model = DisposableIncomeBudget
         fields = [
-            'id', 'amount', 'formatted_amount', 
+            'id', 'amount', 'formatted_amount',
             'owner', 'is_owner', 'date',
             'remaining_amount', 'remaining_formatted'
         ]
@@ -37,10 +37,6 @@ class DisposableIncomeBudgetSerializer(serializers.ModelSerializer):
     def get_is_owner(self, obj) -> bool:
         request = self.context.get('request')
         return bool(request and request.user == obj.owner)
-
-    def get_formatted_amount(self, obj):
-        symbol = get_user_currency_symbol(self.context.get('request'))
-        return f"{symbol}{obj.amount / 100:.2f}"
 
     def to_internal_value(self, data):
         """
@@ -53,9 +49,15 @@ class DisposableIncomeBudgetSerializer(serializers.ModelSerializer):
         return data
 
     def get_remaining_amount(self, obj):
+        """
+        Returns the remaining disposable income by subtracting
+        spending from the budget within the same month.
+        """
         request = self.context.get('request')
-        user, start, end = get_user_and_month_range(request)
+        if not request:
+            return obj.amount
 
+        user, start, end = get_user_and_month_range(request)
         total_spent = DisposableIncomeSpending.objects.filter(
             owner=user,
             date__gte=start,
@@ -64,7 +66,11 @@ class DisposableIncomeBudgetSerializer(serializers.ModelSerializer):
 
         return obj.amount - total_spent
 
-    def get_remaining_formatted(self, obj):
+    def get_formatted_amount(self, obj) -> str:
+        symbol = get_user_currency_symbol(self.context.get('request'))
+        return f"{symbol}{obj.amount / 100:.2f}"
+
+    def get_remaining_formatted(self, obj) -> str:
         remaining = self.get_remaining_amount(obj)
         symbol = get_user_currency_symbol(self.context.get('request'))
         value = abs(remaining) / 100
