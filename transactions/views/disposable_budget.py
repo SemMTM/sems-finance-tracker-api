@@ -1,7 +1,5 @@
 from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied
-from django.utils.timezone import now, make_aware
-from datetime import datetime
 from ..models.disposable import DisposableIncomeBudget
 from ..serializers.disposable import DisposableIncomeBudgetSerializer
 from core.utils.date_helpers import get_user_and_month_range
@@ -12,7 +10,8 @@ class DisposableIncomeBudgetViewSet(viewsets.ModelViewSet):
     ViewSet for managing a user's monthly disposable income budget.
 
     Behavior:
-    - Automatically creates a 0-value budget for the current month if not present
+    - Automatically creates a 0-value budget for the current month
+    if not present
     - Restricts access to only the user's current-month budget
     - Prevents manual creation or deletion
     """
@@ -53,8 +52,11 @@ class DisposableIncomeBudgetViewSet(viewsets.ModelViewSet):
         raise PermissionDenied("You cannot delete a budget.")
 
     def get_object(self):
-        obj = DisposableIncomeBudget.objects.get(pk=self.kwargs['pk'])
+        """
+        Ensures that the user only accesses their own budget instance.
+        """
 
+        obj = super().get_object()
         if obj.owner != self.request.user:
             raise PermissionDenied(
                 "You do not have permission to access this budget.")
