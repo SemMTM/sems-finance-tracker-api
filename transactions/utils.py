@@ -1,4 +1,4 @@
-from datetime import timedelta, time
+from datetime import timedelta, time, datetime
 from django.utils.timezone import make_aware
 from dateutil.relativedelta import relativedelta
 from calendar import monthrange
@@ -51,12 +51,6 @@ def generate_monthly_repeats_for_6_months(instance, model_class):
         repeats.append(new_date)
 
     _bulk_create_repeats(instance, model_class, repeats)
-
-
-from datetime import datetime, timedelta, time
-from dateutil.relativedelta import relativedelta
-from calendar import monthrange
-from django.utils.timezone import make_aware
 
 
 def generate_6th_month_repeats(model_class, user, current_month):
