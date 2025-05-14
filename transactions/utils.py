@@ -1,52 +1,40 @@
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
-from calendar import monthrange, monthcalendar
+from calendar import monthrange
 import uuid
 
 
 def generate_weekly_repeats_for_6_months(instance, model_class):
     """
-    Repeats an entry weekly for 6 months from its original date,
-    but does not create entries beyond the current month + 5 months window.
-    `model_class` is either Expenditure or Income.
+    Repeats an entry weekly for 6 months from its original date.
+    No entries are created beyond the end of the month that is 5 months ahead.
     """
     if not instance.repeat_group_id:
         instance.repeat_group_id = uuid.uuid4()
         instance.save(update_fields=["repeat_group_id"])
 
     base_date = instance.date
-
     # Define the last valid visible date = start of base month + 5 months
-    final_visible_date = base_date.replace(day=1) + relativedelta(months=5)
-    final_day = monthrange(final_visible_date.year, final_visible_date.month)[1]
-    final_visible_date = final_visible_date.replace(day=final_day)
+    final_month = base_date.replace(day=1) + relativedelta(months=5)
+    final_day = monthrange(
+        final_month.year, final_month.month)[1]
+    final_visible_date = final_month.replace(day=final_day)
 
     # Generate repeated weekly dates
-    repeats = []
     current_date = base_date + timedelta(days=7)
+    repeats = []
+
     while current_date <= final_visible_date:
         repeats.append(current_date)
         current_date += timedelta(days=7)
 
-    # Bulk create entries that fall within the limit
-    model_class.objects.bulk_create([
-        model_class(
-            owner=instance.owner,
-            title=instance.title,
-            amount=instance.amount,
-            date=date,
-            repeated=instance.repeated,
-            repeat_group_id=instance.repeat_group_id,
-            **({'type': instance.type} if hasattr(instance, 'type') else {})
-        )
-        for date in repeats
-    ])
+    _bulk_create_repeats(instance, model_class, repeats)
 
 
 def generate_monthly_repeats_for_6_months(instance, model_class):
     """
     Repeats an entry monthly for 6 months from its original date.
-    `model_class` is either Expenditure or Income.
+    Adjusts days to avoid invalid dates (e.g., Feb 30).
     """
     if not instance.repeat_group_id:
         instance.repeat_group_id = uuid.uuid4()
@@ -58,21 +46,10 @@ def generate_monthly_repeats_for_6_months(instance, model_class):
     for i in range(1, 6):
         new_date = base_date + relativedelta(months=i)
         last_day = monthrange(new_date.year, new_date.month)[1]
-        adjusted_day = min(base_date.day, last_day)
-        new_date = new_date.replace(day=adjusted_day)
+        new_date = new_date.replace(day=min(base_date.day, last_day))
         repeats.append(new_date)
 
-    model_class.objects.bulk_create([
-        model_class(
-            owner=instance.owner,
-            title=instance.title,
-            amount=instance.amount,
-            date=date,
-            repeated=instance.repeated,
-            repeat_group_id=instance.repeat_group_id,
-            **({'type': instance.type} if hasattr(instance, 'type') else {})
-        ) for date in repeats
-    ])
+    _bulk_create_repeats(instance, model_class, repeats)
 
 
 def generate_6th_month_repeats(model_class, user, current_month):
@@ -96,40 +73,27 @@ def generate_6th_month_repeats(model_class, user, current_month):
 
     new_entries = []
 
-    # 1. Monthly repeats (unchanged)
-    repeated_entries = model_class.objects.filter(
+    # 1. Monthly repeats
+    monthly_entries = model_class.objects.filter(
         owner=user,
         repeated='MONTHLY',
         date__gte=fifth_start,
         date__lte=fifth_end
     )
 
-    for entry in repeated_entries:
-        base_date = entry.date
-        new_date = base_date + relativedelta(months=1)
+    for entry in monthly_entries:
+        new_date = entry.date + relativedelta(months=1)
+        last_day = monthrange(new_date.year, new_date.month)[1]
+        new_date = new_date.replace(day=min(entry.date.day, last_day))
 
-        if new_date.month == sixth_month.month and new_date.year == sixth_month.year:
-            new_day = min(base_date.day, monthrange(sixth_month.year, sixth_month.month)[1])
-            new_date = new_date.replace(day=new_day)
+        if not model_class.objects.filter(
+            owner=user,
+            repeat_group_id=entry.repeat_group_id,
+            date=new_date
+        ).exists():
+            new_entries.append(_clone_entry(entry, new_date))
 
-            if not model_class.objects.filter(
-                owner=user,
-                repeat_group_id=entry.repeat_group_id,
-                date=new_date
-            ).exists():
-                kwargs = {
-                    'owner': user,
-                    'title': entry.title,
-                    'amount': entry.amount,
-                    'date': new_date,
-                    'repeated': entry.repeated,
-                    'repeat_group_id': entry.repeat_group_id,
-                }
-                if hasattr(entry, 'type'):
-                    kwargs['type'] = entry.type
-                new_entries.append(model_class(**kwargs))
-
-    # 2. Weekly repeats (new logic: repeat from last entry in 5th month)
+    # 2. Weekly repeats
     group_ids = model_class.objects.filter(
         owner=user,
         repeated='WEEKLY',
@@ -156,20 +120,45 @@ def generate_6th_month_repeats(model_class, user, current_month):
                 repeat_group_id=group_id,
                 date=next_date
             ).exists():
-                kwargs = {
-                    'owner': user,
-                    'title': last_entry.title,
-                    'amount': last_entry.amount,
-                    'date': next_date,
-                    'repeated': last_entry.repeated,
-                    'repeat_group_id': group_id,
-                }
-                if hasattr(last_entry, 'type'):
-                    kwargs['type'] = last_entry.type
-                new_entries.append(model_class(**kwargs))
-
+                new_entries.append(_clone_entry(last_entry, next_date))
             next_date += timedelta(days=7)
 
     # Bulk create all new entries
     if new_entries:
         model_class.objects.bulk_create(new_entries)
+
+
+def _clone_entry(entry, date):
+    """
+    Creates a copy of a financial entry with a new date.
+    """
+    data = {
+        'owner': entry.owner,
+        'title': entry.title,
+        'amount': entry.amount,
+        'date': date,
+        'repeated': entry.repeated,
+        'repeat_group_id': entry.repeat_group_id
+    }
+    if hasattr(entry, 'type'):
+        data['type'] = entry.type
+    return entry.__class__(**data)
+
+
+def _bulk_create_repeats(instance, model_class, date_list):
+    """
+    Helper to bulk-create repeated entries based on a list of dates.
+    """
+    entries = [
+        model_class(
+            owner=instance.owner,
+            title=instance.title,
+            amount=instance.amount,
+            date=date,
+            repeated=instance.repeated,
+            repeat_group_id=instance.repeat_group_id,
+            **({'type': instance.type} if hasattr(instance, 'type') else {})
+        )
+        for date in date_list
+    ]
+    model_class.objects.bulk_create(entries)
