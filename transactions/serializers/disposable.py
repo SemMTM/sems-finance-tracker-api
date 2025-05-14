@@ -8,6 +8,10 @@ from django.db.models import Sum
 
 
 class DisposableIncomeBudgetSerializer(serializers.ModelSerializer):
+    """
+    Serializer for a user's disposable income budget for the current month.
+    Includes calculated remaining balance and formatted currency output.
+    """
     owner = serializers.ReadOnlyField(source='owner.username')
     date = serializers.ReadOnlyField()
     is_owner = serializers.SerializerMethodField()
@@ -15,17 +19,24 @@ class DisposableIncomeBudgetSerializer(serializers.ModelSerializer):
     remaining_amount = serializers.SerializerMethodField()
     remaining_formatted = serializers.SerializerMethodField()
     amount = serializers.DecimalField(
-        max_digits=10, decimal_places=2, write_only=True)
+        max_digits=10,
+        decimal_places=2,
+        write_only=True,
+        help_text="Amount in pounds; will be stored in pence."
+    )
 
     class Meta:
         model = DisposableIncomeBudget
-        fields = ['id', 'amount', 'formatted_amount', 'owner', 'is_owner',
-                  'date', 'remaining_amount', 'remaining_formatted']
+        fields = [
+            'id', 'amount', 'formatted_amount', 
+            'owner', 'is_owner', 'date',
+            'remaining_amount', 'remaining_formatted'
+        ]
         read_only_fields = ['owner']
 
-    def get_is_owner(self, obj):
+    def get_is_owner(self, obj) -> bool:
         request = self.context.get('request')
-        return request.user == obj.owner if request else False
+        return bool(request and request.user == obj.owner)
 
     def get_formatted_amount(self, obj):
         symbol = get_user_currency_symbol(self.context.get('request'))
