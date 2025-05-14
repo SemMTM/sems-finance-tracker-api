@@ -7,7 +7,8 @@ from core.utils.currency import get_user_currency_symbol
 class IncomeSerializer(serializers.ModelSerializer):
     """
     Serializer for a user's income entry.
-    Converts input from pounds to pence and provides formatted outputs for display.
+    Converts input from pounds to pence and provides formatted outputs
+    for display.
     """
     owner = serializers.ReadOnlyField(source='owner.username')
     is_owner = serializers.SerializerMethodField()
