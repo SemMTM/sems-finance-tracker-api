@@ -1,12 +1,19 @@
 from django.test import TestCase, RequestFactory
 from django.contrib.auth.models import User
 from django.utils.timezone import now
-from decimal import Decimal
 from transactions.serializers.calendar_summary import CalendarSummarySerializer
 from transactions.models.currency import Currency
 from transactions.serializers.currency import CurrencySerializer
-from transactions.models.disposable import DisposableIncomeBudget, DisposableIncomeSpending
-from transactions.serializers.disposable import DisposableIncomeBudgetSerializer, DisposableIncomeSpendingSerializer
+from transactions.models.disposable import (
+    DisposableIncomeBudget,
+    DisposableIncomeSpending
+)
+from transactions.serializers.disposable import (
+    DisposableIncomeBudgetSerializer,
+    DisposableIncomeSpendingSerializer
+)
+from transactions.models.expenditure import Expenditure
+from transactions.serializers.expenditure import ExpenditureSerializer
 
 
 class CalendarSummarySerializerTests(TestCase):
@@ -231,3 +238,75 @@ class DisposableIncomeSpendingSerializerTests(TestCase):
         )
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertEqual(serializer.validated_data["amount"], 375)
+
+
+class ExpenditureSerializerTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester", password="pass")
+        self.factory = RequestFactory()
+        self.request = self.factory.get('/')
+        self.request.user = self.user
+
+        self.expenditure = Expenditure.objects.create(
+            owner=self.user,
+            title="Rent",
+            amount=120000,  # £1,200.00
+            type="BILL",
+            repeated="MONTHLY",
+            date=now()
+        )
+
+    def test_is_owner_returns_true_when_user_matches(self):
+        """
+        Should return True for is_owner when request user matches expenditure owner.
+        """
+        serializer = ExpenditureSerializer(
+            instance=self.expenditure, context={'request': self.request}
+        )
+        self.assertTrue(serializer.data['is_owner'])
+
+    def test_formatted_amount_includes_currency_symbol(self):
+        """
+        Should return formatted amount string with currency symbol and decimals.
+        """
+        serializer = ExpenditureSerializer(
+            instance=self.expenditure, context={'request': self.request}
+        )
+        self.assertEqual(serializer.data['formatted_amount'], "£1200.00")
+
+    def test_readable_date_is_formatted_properly(self):
+        """
+        Should return a readable date like 'May 15, 2025'.
+        """
+        serializer = ExpenditureSerializer(
+            instance=self.expenditure, context={'request': self.request}
+        )
+        formatted = serializer.data['readable_date']
+        self.assertIn(str(self.expenditure.date.year), formatted)
+        self.assertIn(self.expenditure.date.strftime("%B"), formatted)
+
+    def test_repeated_display_matches_model_choice(self):
+        """
+        Should return the human-readable label for the 'repeated' field.
+        """
+        serializer = ExpenditureSerializer(
+            instance=self.expenditure, context={'request': self.request}
+        )
+        self.assertEqual(serializer.data['repeated_display'], "Monthly")
+
+    def test_to_internal_value_converts_pounds_to_pence(self):
+        """
+        Should convert 'amount' from pounds to integer pence on input.
+        """
+        data = {
+            'title': 'Utilities',
+            'amount': '99.99',
+            'type': 'BILL',
+            'repeated': 'NEVER',
+            'date': now().isoformat()
+        }
+        serializer = ExpenditureSerializer(
+            data=data, context={'request': self.request}
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data['amount'], 9999)
