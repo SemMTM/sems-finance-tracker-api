@@ -1,7 +1,9 @@
 from django.urls import reverse
 from rest_framework.test import APITestCase
+from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth.models import User
+from unittest.mock import patch
 
 
 class ChangeEmailViewTests(APITestCase):
@@ -47,4 +49,37 @@ class ChangeEmailViewTests(APITestCase):
         """
         self.client.logout()
         response = self.client.put(self.url, {'email': 'new@example.com'})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class CustomUserDetailsViewTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='tester',
+            email='user@example.com',
+            password='pass123'
+        )
+        self.url = '/dj-rest-auth/user/'
+        self.client.force_authenticate(user=self.user)
+
+    @patch('core.views.check_and_run_monthly_repeat')
+    def test_get_triggers_repeat_check_and_returns_user_data(self, mock_repeat):
+        """
+        Should trigger check_and_run_monthly_repeat when user details are requested.
+        """
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        mock_repeat.assert_called_once()
+
+        # Check that user was passed as the second argument
+        _, kwargs = mock_repeat.call_args
+        self.assertEqual(mock_repeat.call_args[0][1], self.user)
+
+    def test_unauthenticated_request_is_rejected(self):
+        """
+        Should return 403 if the user is not authenticated.
+        """
+        self.client.logout()
+        response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

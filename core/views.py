@@ -36,5 +36,5 @@ class CustomUserDetailsView(UserDetailsView):
     for the authenticated user upon GET.
     """
     def get(self, request, *args, **kwargs) -> Response:
-        check_and_run_monthly_repeat(request.user)
+        check_and_run_monthly_repeat(request, request.user)
         return super().get(request, *args, **kwargs)
