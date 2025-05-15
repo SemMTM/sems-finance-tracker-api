@@ -17,11 +17,13 @@ from transactions.serializers.expenditure import ExpenditureSerializer
 from transactions.models.income import Income
 from transactions.serializers.income import IncomeSerializer
 from transactions.serializers.monthly_summary import MonthlySummarySerializer
+from transactions.serializers.weekly_summary import WeeklySummarySerializer
 
 
 class CalendarSummarySerializerTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="tester", password="pass")
+        self.user = User.objects.create_user(username="tester",
+                                             password="pass")
         Currency.objects.create(owner=self.user, currency='GBP')
         self.factory = RequestFactory()
         self.request = self.factory.get('/')
@@ -82,7 +84,8 @@ class CurrencySerializerTests(TestCase):
                                              password='pass')
         self.other_user = User.objects.create_user(
             username='someone_else', password='pass')
-        self.currency = Currency.objects.create(owner=self.user, currency='GBP')
+        self.currency = Currency.objects.create(owner=self.user,
+                                                currency='GBP')
         self.factory = RequestFactory()
         self.request = self.factory.get('/')
         self.request.user = self.user
@@ -137,7 +140,8 @@ class CurrencySerializerTests(TestCase):
 
 class DisposableIncomeBudgetSerializerTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="tester", password="pass")
+        self.user = User.objects.create_user(username="tester",
+                                             password="pass")
         self.factory = RequestFactory()
         self.request = self.factory.get('/')
         self.request.user = self.user
@@ -159,7 +163,8 @@ class DisposableIncomeBudgetSerializerTests(TestCase):
 
     def test_remaining_amount_is_correct(self):
         """
-        Should correctly calculate remaining amount from budget and spendings.
+        Should correctly calculate remaining amount from budget
+        and spendings.
         """
         DisposableIncomeSpending.objects.create(
             owner=self.user,
@@ -171,7 +176,8 @@ class DisposableIncomeBudgetSerializerTests(TestCase):
         serializer = DisposableIncomeBudgetSerializer(
             instance=self.budget, context={'request': self.request}
         )
-        self.assertEqual(serializer.data['remaining_amount'], 7000)  # 10000 - 3000
+        self.assertEqual(serializer.data['remaining_amount'], 7000)
+        # 10000 - 3000
 
     def test_to_internal_value_converts_to_pence(self):
         """
@@ -186,7 +192,8 @@ class DisposableIncomeBudgetSerializerTests(TestCase):
 
 class DisposableIncomeSpendingSerializerTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="tester", password="pass")
+        self.user = User.objects.create_user(username="tester",
+                                             password="pass")
         self.factory = RequestFactory()
         self.request = self.factory.get('/')
         self.request.user = self.user
@@ -200,7 +207,8 @@ class DisposableIncomeSpendingSerializerTests(TestCase):
 
     def test_is_owner_returns_true_for_request_user(self):
         """
-        Should return True for is_owner when the request user matches the spending owner.
+        Should return True for is_owner when the request user
+        matches the spending owner.
         """
         serializer = DisposableIncomeSpendingSerializer(
             instance=self.spending, context={"request": self.request}
@@ -209,7 +217,8 @@ class DisposableIncomeSpendingSerializerTests(TestCase):
 
     def test_formatted_amount_includes_currency_symbol(self):
         """
-        Should format the amount with the correct currency symbol and decimal places.
+        Should format the amount with the correct currency symbol
+        and decimal places.
         """
         serializer = DisposableIncomeSpendingSerializer(
             instance=self.spending, context={"request": self.request}
@@ -245,7 +254,8 @@ class DisposableIncomeSpendingSerializerTests(TestCase):
 
 class ExpenditureSerializerTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="tester", password="pass")
+        self.user = User.objects.create_user(username="tester",
+                                             password="pass")
         self.factory = RequestFactory()
         self.request = self.factory.get('/')
         self.request.user = self.user
@@ -261,7 +271,8 @@ class ExpenditureSerializerTests(TestCase):
 
     def test_is_owner_returns_true_when_user_matches(self):
         """
-        Should return True for is_owner when request user matches expenditure owner.
+        Should return True for is_owner when request user matches
+        expenditure owner.
         """
         serializer = ExpenditureSerializer(
             instance=self.expenditure, context={'request': self.request}
@@ -270,7 +281,8 @@ class ExpenditureSerializerTests(TestCase):
 
     def test_formatted_amount_includes_currency_symbol(self):
         """
-        Should return formatted amount string with currency symbol and decimals.
+        Should return formatted amount string with currency symbol
+        and decimals.
         """
         serializer = ExpenditureSerializer(
             instance=self.expenditure, context={'request': self.request}
@@ -317,7 +329,8 @@ class ExpenditureSerializerTests(TestCase):
 
 class IncomeSerializerTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="tester", password="pass")
+        self.user = User.objects.create_user(username="tester",
+                                             password="pass")
         self.factory = RequestFactory()
         self.request = self.factory.get('/')
         self.request.user = self.user
@@ -391,7 +404,8 @@ class IncomeSerializerTests(TestCase):
 
 class MonthlySummarySerializerTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username='tester', password='pass')
+        self.user = User.objects.create_user(username='tester',
+                                             password='pass')
         self.factory = RequestFactory()
         self.request = self.factory.get('/')
         self.request.user = self.user
@@ -409,7 +423,8 @@ class MonthlySummarySerializerTests(TestCase):
 
     def test_all_fields_format_correctly(self):
         """
-        Should return all formatted fields with currency symbol and 2 decimal places.
+        Should return all formatted fields with currency symbol
+        and 2 decimal places.
         """
         serializer = MonthlySummarySerializer(
             instance=self.sample_data,
@@ -438,3 +453,47 @@ class MonthlySummarySerializerTests(TestCase):
             context={'request': self.request}
         )
         self.assertEqual(serializer.data['formatted_total'], '-£25.00')
+
+
+class WeeklySummarySerializerTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester",
+                                             password="pass")
+        self.factory = RequestFactory()
+        self.request = self.factory.get('/')
+        self.request.user = self.user
+
+        self.week_data = {
+            'week_start': '2025-05-01',
+            'week_end': '2025-05-07',
+            'weekly_income': 30000,   # £300.00
+            'weekly_cost': 10000,     # £100.00
+            'summary': 20000          # £200.00
+        }
+
+    def test_weekly_fields_are_formatted_correctly(self):
+        """
+        Should format income, cost, and summary with currency symbol.
+        """
+        serializer = WeeklySummarySerializer(
+            instance=self.week_data,
+            context={'request': self.request}
+        )
+        data = serializer.data
+
+        self.assertEqual(data['income'], '£300.00')
+        self.assertEqual(data['cost'], '£100.00')
+        self.assertEqual(data['summary'], '£200.00')
+
+    def test_negative_summary_has_leading_minus(self):
+        """
+        Should include a minus sign if summary is negative.
+        """
+        negative_data = self.week_data.copy()
+        negative_data['summary'] = -5000  # -£50.00
+
+        serializer = WeeklySummarySerializer(
+            instance=negative_data,
+            context={'request': self.request}
+        )
+        self.assertEqual(serializer.data['summary'], '-£50.00')
