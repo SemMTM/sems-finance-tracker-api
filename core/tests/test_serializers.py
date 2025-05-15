@@ -1,6 +1,6 @@
 from django.test import TestCase
 from django.contrib.auth.models import User
-from core.serializers import CustomUserSerializer
+from core.serializers import CustomUserSerializer, ChangeEmailSerializer
 
 
 class CustomUserSerializerTests(TestCase):
@@ -53,7 +53,8 @@ class CustomUserSerializerTests(TestCase):
 
     def test_username_case_insensitive_duplicate(self):
         """
-        Should raise error if the username exists (case-insensitive) for another user.
+        Should raise error if the username exists (case-insensitive)
+        for another user.
         """
         User.objects.create_user(username='TakenName')
 
@@ -74,3 +75,46 @@ class CustomUserSerializerTests(TestCase):
             data={'username': 'existing_user'}
         )
         self.assertTrue(serializer.is_valid())
+
+
+class ChangeEmailSerializerTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='tester',
+            email='old@example.com',
+            password='pass'
+        )
+        self.existing_email_user = User.objects.create_user(
+            username='other',
+            email='taken@example.com',
+            password='pass'
+        )
+
+    def test_valid_email_change(self):
+        """
+        Should accept a new, unused email and pass validation.
+        """
+        data = {'email': 'newemail@example.com'}
+        serializer = ChangeEmailSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+        self.assertEqual(serializer.validated_data['email'], data['email'])
+
+    def test_email_already_taken(self):
+        """
+        Should raise a validation error if the email is already in use
+        (case-insensitive check).
+        """
+        data = {'email': 'TAKEN@example.com'}
+        serializer = ChangeEmailSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('email', serializer.errors)
+        self.assertIn('already in use', serializer.errors['email'][0])
+
+    def test_invalid_email_format(self):
+        """
+        Should raise an error if the provided email is not a valid format.
+        """
+        data = {'email': 'not-an-email'}
+        serializer = ChangeEmailSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('email', serializer.errors)
