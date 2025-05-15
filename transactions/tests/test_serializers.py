@@ -6,7 +6,7 @@ from transactions.serializers.calendar_summary import CalendarSummarySerializer
 from transactions.models.currency import Currency
 from transactions.serializers.currency import CurrencySerializer
 from transactions.models.disposable import DisposableIncomeBudget, DisposableIncomeSpending
-from transactions.serializers.disposable import DisposableIncomeBudgetSerializer
+from transactions.serializers.disposable import DisposableIncomeBudgetSerializer, DisposableIncomeSpendingSerializer
 
 
 class CalendarSummarySerializerTests(TestCase):
@@ -172,3 +172,62 @@ class DisposableIncomeBudgetSerializerTests(TestCase):
         )
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertEqual(serializer.validated_data['amount'], 5050)
+
+
+class DisposableIncomeSpendingSerializerTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester", password="pass")
+        self.factory = RequestFactory()
+        self.request = self.factory.get('/')
+        self.request.user = self.user
+
+        self.spending = DisposableIncomeSpending.objects.create(
+            owner=self.user,
+            title="Lunch",
+            amount=2500,  # £25.00
+            date=now()
+        )
+
+    def test_is_owner_returns_true_for_request_user(self):
+        """
+        Should return True for is_owner when the request user matches the spending owner.
+        """
+        serializer = DisposableIncomeSpendingSerializer(
+            instance=self.spending, context={"request": self.request}
+        )
+        self.assertTrue(serializer.data["is_owner"])
+
+    def test_formatted_amount_includes_currency_symbol(self):
+        """
+        Should format the amount with the correct currency symbol and decimal places.
+        """
+        serializer = DisposableIncomeSpendingSerializer(
+            instance=self.spending, context={"request": self.request}
+        )
+        self.assertEqual(serializer.data["formatted_amount"], "£25.00")
+
+    def test_readable_date_returns_correct_format(self):
+        """
+        Should return a human-readable string date like 'May 15, 2025'.
+        """
+        serializer = DisposableIncomeSpendingSerializer(
+            instance=self.spending, context={"request": self.request}
+        )
+        formatted = serializer.data["readable_date"]
+        self.assertIn(str(self.spending.date.year), formatted)
+        self.assertIn(self.spending.date.strftime("%B"), formatted)
+
+    def test_to_internal_value_converts_to_pence(self):
+        """
+        Should convert a decimal pound string into integer pence when saving.
+        """
+        serializer = DisposableIncomeSpendingSerializer(
+            data={
+                "title": "Coffee",
+                "amount": "3.75",
+                "date": now().isoformat()
+            },
+            context={"request": self.request}
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["amount"], 375)
