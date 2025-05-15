@@ -67,12 +67,14 @@ def generate_6th_month_repeats(model_class, user, current_month):
     fifth_start = make_aware(datetime.combine(
         fifth_month.replace(day=1), time.min))
     fifth_end = make_aware(datetime.combine(
-        fifth_month.replace(day=monthrange(fifth_month.year, fifth_month.month)[1]),
+        fifth_month.replace(day=monthrange(
+            fifth_month.year, fifth_month.month)[1]),
         time.min
     ))
 
     sixth_end = make_aware(datetime.combine(
-        sixth_month.replace(day=monthrange(sixth_month.year, sixth_month.month)[1]),
+        sixth_month.replace(day=monthrange(
+            sixth_month.year, sixth_month.month)[1]),
         time.min
     ))
 
