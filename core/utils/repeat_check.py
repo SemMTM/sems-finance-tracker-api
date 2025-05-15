@@ -1,11 +1,11 @@
 from django.utils.timezone import now
-from transactions.utils import generate_6th_month_repeats
+from transactions.utils import generate_6th_month_repeats, clean_old_transactions
 from transactions.models import Income, Expenditure
 from core.models import UserProfile
 from django.contrib.auth.models import User
 
 
-def check_and_run_monthly_repeat(user: User) -> None:
+def check_and_run_monthly_repeat(request, user: User) -> None:
     """
     Ensures that monthly repeated entries for Income and Expenditure
     are generated only once per month for a given user.
@@ -20,6 +20,7 @@ def check_and_run_monthly_repeat(user: User) -> None:
     """
     today = now().date()
     current_month = today.replace(day=1)
+    user = request.user
 
     # Ensure user profile exists
     profile, _ = UserProfile.objects.get_or_create(user=user)
@@ -31,6 +32,8 @@ def check_and_run_monthly_repeat(user: User) -> None:
     # Generate repeated entries
     generate_6th_month_repeats(Income, user, current_month)
     generate_6th_month_repeats(Expenditure, user, current_month)
+
+    clean_old_transactions(user)
 
     # Update last repeat check timestamp
     profile.last_repeat_check = current_month

@@ -2,6 +2,13 @@ from datetime import timedelta, time, datetime
 from django.utils.timezone import make_aware
 from dateutil.relativedelta import relativedelta
 from calendar import monthrange
+from django.utils.timezone import now
+from transactions.models import (
+    Income,
+    Expenditure,
+    DisposableIncomeSpending,
+    DisposableIncomeBudget,
+)
 import uuid
 
 
@@ -169,3 +176,28 @@ def _bulk_create_repeats(instance, model_class, date_list):
         for date in date_list
     ]
     model_class.objects.bulk_create(entries)
+
+
+def clean_old_transactions(user):
+    """
+    Deletes all of a user's financial records that are older than
+    the start of the visible window (current month - 5 months).
+    """
+    # 1. Get current month as datetime (first day of month)
+    current_month_start = now().replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    # 2. Calculate the cutoff date (start of current month - 6 months)
+    cutoff_date = current_month_start - relativedelta(months=6)
+
+    # 3. Models to clean
+    transaction_models = [
+        Income,
+        Expenditure,
+        DisposableIncomeSpending,
+        DisposableIncomeBudget,
+    ]
+
+    # 4. Loop through and delete anything outside the visible window
+    for model in transaction_models:
+        model.objects.filter(owner=user, date__lt=cutoff_date).delete()
