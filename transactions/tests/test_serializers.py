@@ -14,6 +14,8 @@ from transactions.serializers.disposable import (
 )
 from transactions.models.expenditure import Expenditure
 from transactions.serializers.expenditure import ExpenditureSerializer
+from transactions.models.income import Income
+from transactions.serializers.income import IncomeSerializer
 
 
 class CalendarSummarySerializerTests(TestCase):
@@ -310,3 +312,77 @@ class ExpenditureSerializerTests(TestCase):
         )
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertEqual(serializer.validated_data['amount'], 9999)
+
+
+class IncomeSerializerTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester", password="pass")
+        self.factory = RequestFactory()
+        self.request = self.factory.get('/')
+        self.request.user = self.user
+
+        self.income = Income.objects.create(
+            owner=self.user,
+            title="Salary",
+            amount=250000,  # £2,500.00
+            repeated="MONTHLY",
+            date=now()
+        )
+
+    def test_is_owner_returns_true_for_matching_user(self):
+        """
+        Should return True when the request user matches the income owner.
+        """
+        serializer = IncomeSerializer(
+            instance=self.income,
+            context={"request": self.request}
+        )
+        self.assertTrue(serializer.data["is_owner"])
+
+    def test_formatted_amount_includes_currency(self):
+        """
+        Should return formatted amount string with currency symbol.
+        """
+        serializer = IncomeSerializer(
+            instance=self.income,
+            context={"request": self.request}
+        )
+        self.assertEqual(serializer.data["formatted_amount"], "£2500.00")
+
+    def test_readable_date_formatting_is_correct(self):
+        """
+        Should return a human-readable formatted date string.
+        """
+        serializer = IncomeSerializer(
+            instance=self.income,
+            context={"request": self.request}
+        )
+        formatted = serializer.data["readable_date"]
+        self.assertIn(str(self.income.date.year), formatted)
+        self.assertIn(self.income.date.strftime("%B"), formatted)
+
+    def test_repeated_display_matches_model_label(self):
+        """
+        Should return the human-readable version of the repeated field.
+        """
+        serializer = IncomeSerializer(
+            instance=self.income,
+            context={"request": self.request}
+        )
+        self.assertEqual(serializer.data["repeated_display"], "Monthly")
+
+    def test_to_internal_value_converts_to_pence(self):
+        """
+        Should convert decimal string pound input into integer pence.
+        """
+        data = {
+            "title": "Freelance",
+            "amount": "99.99",
+            "date": now().isoformat(),
+            "repeated": "NEVER"
+        }
+        serializer = IncomeSerializer(
+            data=data, context={"request": self.request}
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["amount"], 9999)
