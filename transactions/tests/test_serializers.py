@@ -1,8 +1,12 @@
 from django.test import TestCase, RequestFactory
 from django.contrib.auth.models import User
+from django.utils.timezone import now
+from decimal import Decimal
 from transactions.serializers.calendar_summary import CalendarSummarySerializer
 from transactions.models.currency import Currency
 from transactions.serializers.currency import CurrencySerializer
+from transactions.models.disposable import DisposableIncomeBudget, DisposableIncomeSpending
+from transactions.serializers.disposable import DisposableIncomeBudgetSerializer
 
 
 class CalendarSummarySerializerTests(TestCase):
@@ -119,3 +123,52 @@ class CurrencySerializerTests(TestCase):
         serializer = CurrencySerializer(instance=self.currency,
                                         context={'request': self.request})
         self.assertEqual(serializer.data['currency_symbol'], '£')
+
+
+class DisposableIncomeBudgetSerializerTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester", password="pass")
+        self.factory = RequestFactory()
+        self.request = self.factory.get('/')
+        self.request.user = self.user
+
+        self.budget = DisposableIncomeBudget.objects.create(
+            owner=self.user,
+            amount=10000,  # £100
+            date=now().replace(day=1)
+        )
+
+    def test_is_owner_true_when_user_matches(self):
+        """
+        Should return True for is_owner when request user matches budget owner.
+        """
+        serializer = DisposableIncomeBudgetSerializer(
+            instance=self.budget, context={'request': self.request}
+        )
+        self.assertTrue(serializer.data['is_owner'])
+
+    def test_remaining_amount_is_correct(self):
+        """
+        Should correctly calculate remaining amount from budget and spendings.
+        """
+        DisposableIncomeSpending.objects.create(
+            owner=self.user,
+            title='Snacks',
+            amount=3000,  # £30
+            date=now()
+        )
+
+        serializer = DisposableIncomeBudgetSerializer(
+            instance=self.budget, context={'request': self.request}
+        )
+        self.assertEqual(serializer.data['remaining_amount'], 7000)  # 10000 - 3000
+
+    def test_to_internal_value_converts_to_pence(self):
+        """
+        Should convert pounds to integer pence during deserialization.
+        """
+        serializer = DisposableIncomeBudgetSerializer(
+            data={'amount': '50.50'}, context={'request': self.request}
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data['amount'], 5050)
