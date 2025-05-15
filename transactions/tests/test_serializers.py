@@ -16,6 +16,7 @@ from transactions.models.expenditure import Expenditure
 from transactions.serializers.expenditure import ExpenditureSerializer
 from transactions.models.income import Income
 from transactions.serializers.income import IncomeSerializer
+from transactions.serializers.monthly_summary import MonthlySummarySerializer
 
 
 class CalendarSummarySerializerTests(TestCase):
@@ -386,3 +387,54 @@ class IncomeSerializerTests(TestCase):
         )
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertEqual(serializer.validated_data["amount"], 9999)
+
+
+class MonthlySummarySerializerTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='tester', password='pass')
+        self.factory = RequestFactory()
+        self.request = self.factory.get('/')
+        self.request.user = self.user
+
+        self.sample_data = {
+            'income': 50000,               # £500.00
+            'bills': 20000,                # £200.00
+            'saving': 5000,                # £50.00
+            'investment': 5000,            # £50.00
+            'disposable_spending': 10000,  # £100.00
+            'total': 10000,                # £100.00
+            'budget': 15000,               # £150.00
+            'remaining_disposable': 5000   # £50.00
+        }
+
+    def test_all_fields_format_correctly(self):
+        """
+        Should return all formatted fields with currency symbol and 2 decimal places.
+        """
+        serializer = MonthlySummarySerializer(
+            instance=self.sample_data,
+            context={'request': self.request}
+        )
+        data = serializer.data
+
+        self.assertEqual(data['formatted_income'], '£500.00')
+        self.assertEqual(data['formatted_bills'], '£200.00')
+        self.assertEqual(data['formatted_saving'], '£50.00')
+        self.assertEqual(data['formatted_investment'], '£50.00')
+        self.assertEqual(data['formatted_disposable_spending'], '£100.00')
+        self.assertEqual(data['formatted_total'], '£100.00')
+        self.assertEqual(data['formatted_budget'], '£150.00')
+        self.assertEqual(data['formatted_remaining_disposable'], '£50.00')
+
+    def test_negative_values_show_leading_minus(self):
+        """
+        Should include a minus sign before the symbol for negative values.
+        """
+        negative_data = self.sample_data.copy()
+        negative_data['total'] = -2500  # -£25.00
+
+        serializer = MonthlySummarySerializer(
+            instance=negative_data,
+            context={'request': self.request}
+        )
+        self.assertEqual(serializer.data['formatted_total'], '-£25.00')
