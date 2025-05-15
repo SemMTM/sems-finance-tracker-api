@@ -98,6 +98,9 @@ if DEBUG:
             'rest_framework.authentication.SessionAuthentication',
             'dj_rest_auth.jwt_auth.JWTCookieAuthentication',
         ],
+        'TEST_REQUEST_DEFAULT_FORMAT': (
+            'json'
+        ),
     }
 else:
     REST_FRAMEWORK = {
@@ -110,6 +113,9 @@ else:
         ],
         'DEFAULT_PERMISSION_CLASSES': (
             'rest_framework.permissions.IsAuthenticated',
+        ),
+        'TEST_REQUEST_DEFAULT_FORMAT': (
+            'json'
         ),
     }
 
