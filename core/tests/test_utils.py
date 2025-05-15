@@ -16,7 +16,8 @@ from core.models import UserProfile
 class CurrencyUtilsTests(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
-        self.user = User.objects.create_user(username='tester', password='testpass')
+        self.user = User.objects.create_user(
+            username='tester', password='testpass')
 
     def test_get_currency_symbol_known_codes(self):
         """
@@ -29,21 +30,25 @@ class CurrencyUtilsTests(TestCase):
 
     def test_get_currency_symbol_unknown_code(self):
         """
-        Should return an empty string for unknown or unsupported currency codes.
+        Should return an empty string for unknown or unsupported
+        currency codes.
         """
         self.assertEqual(get_currency_symbol('XYZ'), '')
 
     def test_get_user_currency_symbol_unauthenticated_user(self):
         """
-        Should return the default currency symbol (GBP) if the user is unauthenticated.
+        Should return the default currency symbol (GBP)
+        if the user is unauthenticated.
         """
         request = self.factory.get('/')
         request.user = AnonymousUser()
-        self.assertEqual(get_user_currency_symbol(request), '£')  # Default is GBP
+        self.assertEqual(get_user_currency_symbol(request), '£')
+        # Default is GBP
 
     def test_get_user_currency_symbol_authenticated_without_currency(self):
         """
-        Should return the default currency symbol (GBP) if the user is authenticated
+        Should return the default currency symbol (GBP)
+        if the user is authenticated
         but has no currency entry set.
         """
         request = self.factory.get('/')
@@ -64,11 +69,13 @@ class CurrencyUtilsTests(TestCase):
 class DateHelpersTests(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
-        self.user = User.objects.create_user(username='tester', password='testpass')
+        self.user = User.objects.create_user(
+            username='tester', password='testpass')
 
     def test_get_user_and_month_range_with_valid_param(self):
         """
-        Returns correct start/end datetimes when a valid ?month=YYYY-MM param is provided.
+        Returns correct start/end datetimes when a valid
+        ?month=YYYY-MM param is provided.
         """
         request = self.factory.get('/?month=2025-09')
         request.user = self.user
@@ -135,7 +142,8 @@ class CheckAndRunMonthlyRepeatTests(TestCase):
 
     @patch("core.utils.repeat_check.generate_6th_month_repeats")
     @patch("core.utils.repeat_check.clean_old_transactions")
-    def test_creates_profile_and_runs_repeat_if_not_run_this_month(self, mock_clean, mock_repeat):
+    def test_creates_profile_and_runs_repeat_if_not_run_this_month(
+        self, mock_clean, mock_repeat):
         """
         Should create a UserProfile and run both repeat generators
         and cleanup when no repeat has been recorded for the current month.
@@ -151,7 +159,8 @@ class CheckAndRunMonthlyRepeatTests(TestCase):
 
     @patch("core.utils.repeat_check.generate_6th_month_repeats")
     @patch("core.utils.repeat_check.clean_old_transactions")
-    def test_does_not_repeat_if_already_ran_this_month(self, mock_clean, mock_repeat):
+    def test_does_not_repeat_if_already_ran_this_month(
+        self, mock_clean, mock_repeat):
         """
         Should not trigger repeat logic again if it was already run
         for the current month.
@@ -170,15 +179,20 @@ class CheckAndRunMonthlyRepeatTests(TestCase):
 
     @patch("core.utils.repeat_check.generate_6th_month_repeats")
     @patch("core.utils.repeat_check.clean_old_transactions")
-    def test_runs_repeat_if_last_check_was_previous_month(self, mock_clean, mock_repeat):
+    def test_runs_repeat_if_last_check_was_previous_month(self,
+                                                          mock_clean,
+                                                          mock_repeat):
         """
-        Should trigger repeat logic if the last check was from a previous month.
+        Should trigger repeat logic if the last check was
+        from a previous month.
         """
         previous_month = now().date().replace(day=1)
         if previous_month.month == 1:
-            previous_month = previous_month.replace(year=previous_month.year - 1, month=12)
+            previous_month = previous_month.replace(
+                year=previous_month.year - 1, month=12)
         else:
-            previous_month = previous_month.replace(month=previous_month.month - 1)
+            previous_month = previous_month.replace(
+                month=previous_month.month - 1)
 
         UserProfile.objects.update_or_create(
             user=self.user,
@@ -188,6 +202,7 @@ class CheckAndRunMonthlyRepeatTests(TestCase):
         check_and_run_monthly_repeat(self.request, self.user)
 
         profile = UserProfile.objects.get(user=self.user)
-        self.assertEqual(profile.last_repeat_check, now().date().replace(day=1))
+        self.assertEqual(profile.last_repeat_check, now().date().replace(
+            day=1))
         self.assertEqual(mock_repeat.call_count, 2)
         mock_clean.assert_called_once_with(self.user)
