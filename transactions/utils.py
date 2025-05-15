@@ -99,13 +99,13 @@ def generate_6th_month_repeats(model_class, user, current_month):
             new_entries.append(_clone_entry(entry, new_date))
 
     # ---- 2. Weekly repeats ----
-    group_ids = model_class.objects.filter(
+    group_ids = set(model_class.objects.filter(
         owner=user,
         repeated='WEEKLY',
         date__gte=fifth_start,
         date__lte=fifth_end,
         repeat_group_id__isnull=False
-    ).values_list('repeat_group_id', flat=True).distinct()
+    ).values_list('repeat_group_id', flat=True))
 
     for group_id in group_ids:
         last_entry = model_class.objects.filter(
