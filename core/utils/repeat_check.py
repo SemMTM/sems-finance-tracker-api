@@ -1,5 +1,8 @@
 from django.utils.timezone import now
-from transactions.utils import generate_6th_month_repeats, clean_old_transactions
+from transactions.utils import (
+    generate_6th_month_repeats,
+    clean_old_transactions
+)
 from transactions.models import Income, Expenditure
 from core.models import UserProfile
 from django.contrib.auth.models import User
