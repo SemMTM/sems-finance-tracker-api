@@ -269,3 +269,123 @@ class DisposableIncomeBudgetViewSetTests(TestCase):
         self.client.logout()
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class DisposableIncomeSpendingViewSetTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username="testuser", password="pass")
+        self.client.force_authenticate(user=self.user)
+        self.url = "/disposable-spending/"
+        self.today = now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    def test_create_entry_sets_owner(self):
+        """Should assign the logged-in user as the owner of new entries."""
+        payload = {
+            "title": "Takeaway",
+            "amount": "12.50",
+            "date": self.today.isoformat()
+        }
+        response = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        entry = DisposableIncomeSpending.objects.get()
+        self.assertEqual(entry.owner, self.user)
+        self.assertEqual(entry.amount, 1250)
+
+    def test_user_only_sees_own_entries_for_current_month(self):
+        """Should only return this user's entries for the current month."""
+        DisposableIncomeSpending.objects.create(
+            owner=self.user, title="Food", amount=1000, date=self.today)
+        other_user = User.objects.create_user(
+            username="other", password="pass")
+        DisposableIncomeSpending.objects.create(
+            owner=other_user, title="Coffee", amount=500, date=self.today)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["title"], "Food")
+
+    def test_filtering_with_month_param(self):
+        """Should allow filtering by ?month=YYYY-MM to scope by month."""
+        last_month = self.today - relativedelta(months=1)
+        DisposableIncomeSpending.objects.create(
+            owner=self.user, title="Old Purchase", amount=500, date=last_month)
+        params = urlencode({"month": self.today.strftime("%Y-%m")})
+        response = self.client.get(f"{self.url}?{params}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 0)
+
+    def test_user_cannot_access_others_entries(self):
+        """Should forbid access to another user's entry by ID."""
+        other_user = User.objects.create_user(
+            username="otheruser", password="pass")
+        entry = DisposableIncomeSpending.objects.create(
+            owner=other_user, title="Hidden", amount=1000, date=self.today)
+
+        response = self.client.get(f"{self.url}{entry.pk}/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_user_cannot_delete_others_entry(self):
+        """Should forbid deleting an entry not owned by user."""
+        other_user = User.objects.create_user(
+            username="someone", password="pass")
+        entry = DisposableIncomeSpending.objects.create(
+            owner=other_user, title="Nope", amount=500, date=self.today)
+        response = self.client.delete(f"{self.url}{entry.pk}/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_requires_authentication(self):
+        """Should reject unauthenticated access to endpoints."""
+        self.client.logout()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_blank_title_rejected(self):
+        """Should reject entries with blank titles."""
+        payload = {
+            "title": "",
+            "amount": "10.00",
+            "date": self.today.isoformat()
+        }
+        response = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('title', response.data)
+
+    def test_negative_amount_rejected(self):
+        """Should reject entries with negative amount input."""
+        payload = {
+            "title": "Invalid",
+            "amount": "-10.00",
+            "date": self.today.isoformat()
+        }
+        response = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    def test_user_cannot_partial_update_foreign_entry(self):
+        """Should prevent partial updates to entries not owned by the user."""
+        other_user = User.objects.create_user(username="stranger", password="pass")
+        entry = DisposableIncomeSpending.objects.create(
+            owner=other_user, title="Hacked", amount=500, date=self.today)
+
+        response = self.client.patch(f"{self.url}{entry.pk}/", {
+            "title": "Updated"
+        }, format="json")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_user_can_update_own_entry(self):
+        """Should allow user to update their own entry."""
+        entry = DisposableIncomeSpending.objects.create(
+            owner=self.user, title="Lunch", amount=1000, date=self.today)
+        payload = {
+            "title": "Dinner",
+            "amount": "20.00",
+            "date": self.today.isoformat()
+        }
+        response = self.client.put(f"{self.url}{entry.pk}/", payload, format="json")
+        self.assertEqual(response.status_code, 200)
+        entry.refresh_from_db()
+        self.assertEqual(entry.title, "Dinner")
+        self.assertEqual(entry.amount, 2000)

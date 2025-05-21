@@ -133,3 +133,11 @@ class DisposableIncomeSpendingSerializer(serializers.ModelSerializer):
             Decimal(data['amount']).quantize(Decimal('0.01')) * 100
         )
         return data
+
+    def validate_amount(self, value):
+        """
+        Ensure amount is non-negative.
+        """
+        if value < 0:
+            raise serializers.ValidationError("Amount cannot be negative.")
+        return value
