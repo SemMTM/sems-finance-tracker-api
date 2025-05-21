@@ -76,6 +76,7 @@ class IncomeViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         instance = serializer.save()
+        old_group_id = instance.repeat_group_id
 
         # Only apply group updates if the entry is repeated
         if (
@@ -84,14 +85,14 @@ class IncomeViewSet(viewsets.ModelViewSet):
         ):
             new_group_id = uuid.uuid4()
 
-            future_entries = Income.objects.filter(
-                owner=self.request.user,
-                repeat_group_id=serializer.instance.repeat_group_id,
-                date__gt=instance.date)
-
             # Update the edited instance with the new group ID
             instance.repeat_group_id = new_group_id
             instance.save(update_fields=['repeat_group_id'])
+
+            future_entries = Income.objects.filter(
+                owner=self.request.user,
+                repeat_group_id=old_group_id,
+                date__gt=instance.date)
 
             # Update all future entries (same group, same user,
             # after the edited date)

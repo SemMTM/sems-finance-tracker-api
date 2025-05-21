@@ -1,3 +1,4 @@
+import uuid
 from django.test import TestCase
 from rest_framework.test import APIClient
 from django.contrib.auth.models import User
@@ -270,6 +271,13 @@ class DisposableIncomeBudgetViewSetTests(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_budget_not_duplicated_on_multiple_access(self):
+        """Should only create one budget even with multiple accesses."""
+        response1 = self.client.get("/disposable-budget/")
+        response2 = self.client.get("/disposable-budget/")
+        count = DisposableIncomeBudget.objects.filter(owner=self.user).count()
+        self.assertEqual(count, 1)
+
 
 class DisposableIncomeSpendingViewSetTests(TestCase):
     def setUp(self):
@@ -365,7 +373,8 @@ class DisposableIncomeSpendingViewSetTests(TestCase):
 
     def test_user_cannot_partial_update_foreign_entry(self):
         """Should prevent partial updates to entries not owned by the user."""
-        other_user = User.objects.create_user(username="stranger", password="pass")
+        other_user = User.objects.create_user(
+            username="stranger", password="pass")
         entry = DisposableIncomeSpending.objects.create(
             owner=other_user, title="Hacked", amount=500, date=self.today)
 
@@ -384,8 +393,145 @@ class DisposableIncomeSpendingViewSetTests(TestCase):
             "amount": "20.00",
             "date": self.today.isoformat()
         }
-        response = self.client.put(f"{self.url}{entry.pk}/", payload, format="json")
+        response = self.client.put(
+            f"{self.url}{entry.pk}/", payload, format="json")
         self.assertEqual(response.status_code, 200)
         entry.refresh_from_db()
         self.assertEqual(entry.title, "Dinner")
         self.assertEqual(entry.amount, 2000)
+
+
+class ExpenditureViewSetTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(username='testuser', password='pass')
+        self.other_user = User.objects.create_user(username='other', password='pass')
+        self.client.force_authenticate(user=self.user)
+        self.url = '/expenditures/'
+
+    def test_create_expenditure_successfully(self):
+        """Should allow authenticated user to create a valid expenditure"""
+        data = {
+            'title': 'Rent',
+            'amount': 100.00,
+            'type': 'BILL',
+            'date': now().date(),
+            'repeated': 'NEVER'
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Expenditure.objects.filter(owner=self.user, title='Rent').exists())
+
+    def test_expenditure_requires_authentication(self):
+        """Should reject unauthenticated requests with 403"""
+        self.client.logout()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_user_cannot_access_others_expenditure(self):
+        """Should deny access to expenditures owned by another user"""
+        other_exp = Expenditure.objects.create(
+            owner=self.other_user,
+            title='Hidden',
+            amount=1000,
+            type='BILL',
+            date=now().date()
+        )
+        response = self.client.get(f'{self.url}{other_exp.pk}/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_create_weekly_repeat_generates_future_entries(self):
+        """Should generate future entries if repeated=weekly"""
+        data = {
+            'title': 'Gym',
+            'amount': 25.00,
+            'type': 'BILL',
+            'date': now().date(),
+            'repeated': 'WEEKLY'
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, 201)
+        group_id = Expenditure.objects.first().repeat_group_id
+        count = Expenditure.objects.filter(repeat_group_id=group_id).count()
+        self.assertTrue(count > 1)  # Should be more than 1 entry
+
+    def test_update_repeated_entry_propagates(self):
+        """Should update future repeated entries on edit"""
+        initial = Expenditure.objects.create(
+            owner=self.user,
+            title='Sub',
+            amount=1000,
+            type='BILL',
+            date=now().date(),
+            repeated='WEEKLY',
+            repeat_group_id=uuid.uuid4()
+        )
+        # Create a future instance manually
+        future = Expenditure.objects.create(
+            owner=self.user,
+            title='Sub',
+            amount=1000,
+            type='BILL',
+            date=now().date() + timedelta(days=7),
+            repeated='WEEKLY',
+            repeat_group_id=initial.repeat_group_id
+        )
+
+        response = self.client.put(f'{self.url}{initial.pk}/', {
+            'title': 'New Title',
+            'amount': 50.00,
+            'type': 'BILL',
+            'date': initial.date,
+            'repeated': 'WEEKLY'
+        }, format='json')
+
+        future.refresh_from_db()
+        self.assertEqual(future.title, 'New Title')
+        self.assertEqual(future.amount, 5000)  # £50.00 in pence
+
+    def test_delete_repeated_entry_removes_future_instances(self):
+        """Should delete future entries in the same group"""
+        base = Expenditure.objects.create(
+            owner=self.user,
+            title='Sub',
+            amount=1000,
+            type='BILL',
+            date=now().date(),
+            repeated='MONTHLY',
+            repeat_group_id=uuid.uuid4()
+        )
+        future = Expenditure.objects.create(
+            owner=self.user,
+            title='Sub',
+            amount=1000,
+            type='BILL',
+            date=now().date() + timedelta(days=30),
+            repeated='MONTHLY',
+            repeat_group_id=base.repeat_group_id
+        )
+
+        response = self.client.delete(f'{self.url}{base.pk}/')
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Expenditure.objects.filter(repeat_group_id=base.repeat_group_id).exists())
+
+    def test_get_queryset_limits_to_current_user_and_month(self):
+        """Should only return the current user's entries for this month"""
+        Expenditure.objects.create(
+            owner=self.user,
+            title='Valid',
+            amount=1000,
+            type='BILL',
+            date=now().date()
+        )
+        Expenditure.objects.create(
+            owner=self.other_user,
+            title='Invalid',
+            amount=1000,
+            type='BILL',
+            date=now().date()
+        )
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        titles = [e['title'] for e in response.data]
+        self.assertIn('Valid', titles)
+        self.assertNotIn('Invalid', titles)

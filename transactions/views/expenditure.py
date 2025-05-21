@@ -84,6 +84,7 @@ class ExpenditureViewSet(viewsets.ModelViewSet):
         repeated entries.
         """
         instance = serializer.save()
+        old_group_id = instance.repeat_group_id
 
         # Only apply group updates if the entry is repeated
         if (
@@ -99,7 +100,7 @@ class ExpenditureViewSet(viewsets.ModelViewSet):
             # Update future entries in the group
             Expenditure.objects.filter(
                 owner=self.request.user,
-                repeat_group_id=serializer.instance.repeat_group_id,
+                repeat_group_id=old_group_id,
                 date__gt=instance.date
             ).update(
                 title=instance.title,
