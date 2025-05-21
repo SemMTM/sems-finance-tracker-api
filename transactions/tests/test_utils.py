@@ -1,14 +1,20 @@
 from django.test import TestCase
 from django.contrib.auth.models import User
-from django.utils.timezone import make_aware
+from django.utils.timezone import make_aware, now
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from calendar import monthrange
-from transactions.models import Income
+from transactions.models import (
+    Income,
+    Expenditure,
+    DisposableIncomeSpending,
+    DisposableIncomeBudget,
+)
 from transactions.utils import (
     generate_weekly_repeats_for_6_months,
     generate_monthly_repeats_for_6_months,
-    generate_6th_month_repeats
+    generate_6th_month_repeats,
+    clean_old_transactions
   )
 import uuid
 
@@ -310,8 +316,10 @@ class Generate6thMonthRepeatsTests(TestCase):
         self.assertEqual(entries.count(), 0)
 
     def test_does_not_generate_repeats_for_other_users(self):
-        """Should not generate any entries for users other than the one specified."""
-        other_user = User.objects.create_user(username="other", password="pass")
+        """Should not generate any entries for
+        users other than the one specified."""
+        other_user = User.objects.create_user(
+            username="other", password="pass")
         Income.objects.create(
             owner=other_user,
             title="Their Income",
@@ -324,7 +332,8 @@ class Generate6thMonthRepeatsTests(TestCase):
         self.assertFalse(Income.objects.filter(owner=self.user).exists())
 
     def test_cloned_entries_share_repeat_group_id(self):
-        """Should ensure all repeated entries inherit the original repeat_group_id."""
+        """Should ensure all repeated entries inherit the
+        original repeat_group_id."""
         base = Income.objects.create(
             owner=self.user,
             title="Linked Entry",
@@ -341,12 +350,14 @@ class Generate6thMonthRepeatsTests(TestCase):
         self.assertTrue(repeats.exists())
 
     def test_no_data_in_fifth_month_creates_nothing(self):
-        """Should create no entries if the user has no eligible data in the 5th month."""
+        """Should create no entries if the user has
+        no eligible data in the 5th month."""
         generate_6th_month_repeats(Income, self.user, self.current_month)
         self.assertEqual(Income.objects.count(), 0)
 
     def test_cloned_entry_fields_match_base(self):
-        """Should ensure repeated entries copy all relevant fields from the base entry."""
+        """Should ensure repeated entries copy all
+        relevant fields from the base entry."""
         base = Income.objects.create(
             owner=self.user,
             title="Original",
@@ -361,3 +372,87 @@ class Generate6thMonthRepeatsTests(TestCase):
         self.assertEqual(clone.title, base.title)
         self.assertEqual(clone.amount, base.amount)
         self.assertEqual(clone.repeated, base.repeated)
+
+
+class CleanOldTransactionsTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="tester", password="pass")
+        self.other_user = User.objects.create_user(
+            username="other", password="pass")
+        self.today = now().replace(hour=0, minute=0, second=0, microsecond=0)
+        self.cutoff = self.today.replace(day=1) - relativedelta(months=6)
+        self.models = [
+            Income,
+            Expenditure,
+            DisposableIncomeSpending,
+            DisposableIncomeBudget
+          ]
+
+    def _create_entry(self, model, owner, date):
+        """Helper to create entries for each model."""
+        kwargs = {
+            "owner": owner,
+            "amount": 1000,
+            "date": make_aware(datetime.combine(date, datetime.min.time())),
+        }
+
+        if model in [Income, Expenditure]:
+            kwargs["title"] = "Test"
+        if model == Expenditure:
+            kwargs["type"] = "BILL"
+        if model == Income or model == Expenditure:
+            kwargs["repeated"] = "NEVER"
+        if model == DisposableIncomeBudget:
+            kwargs.pop("title", None)  # no title field
+
+        return model.objects.create(**kwargs)
+
+    def test_deletes_old_entries_for_all_models(self):
+        """Should delete all entries older than cutoff across all models."""
+        for model in self.models:
+            self._create_entry(
+                model, self.user, self.cutoff - timedelta(days=1))
+
+        clean_old_transactions(self.user)
+
+        for model in self.models:
+            self.assertEqual(model.objects.filter(owner=self.user).count(), 0)
+
+    def test_keeps_recent_entries(self):
+        """Should retain entries from within the visible 6-month window."""
+        for model in self.models:
+            self._create_entry(
+                model, self.user, self.cutoff + timedelta(days=1))
+
+        clean_old_transactions(self.user)
+
+        for model in self.models:
+            self.assertEqual(model.objects.filter(owner=self.user).count(), 1)
+
+    def test_does_not_delete_other_users_data(self):
+        """Should not affect financial data from other users."""
+        for model in self.models:
+            self._create_entry(
+                model, self.other_user, self.cutoff - timedelta(days=1))
+
+        clean_old_transactions(self.user)
+
+        for model in self.models:
+            self.assertEqual(
+                model.objects.filter(owner=self.other_user).count(), 1)
+
+    def test_mixed_old_and_new_entries(self):
+        """Should delete only old entries and retain recent ones."""
+        for model in self.models:
+            self._create_entry(
+                model, self.user, self.cutoff - timedelta(days=1))
+            self._create_entry(
+                model, self.user, self.cutoff + timedelta(days=1))
+
+        clean_old_transactions(self.user)
+
+        for model in self.models:
+            entries = model.objects.filter(owner=self.user)
+            self.assertEqual(entries.count(), 1)
+            self.assertTrue(entries.first().date >= self.cutoff)
