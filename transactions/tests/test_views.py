@@ -404,11 +404,14 @@ class DisposableIncomeSpendingViewSetTests(TestCase):
 class ExpenditureViewSetTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(username='testuser', password='pass')
-        self.other_user = User.objects.create_user(username='other', password='pass')
+        self.user = User.objects.create_user(
+            username='testuser', password='pass')
+        self.other_user = User.objects.create_user(
+            username='other', password='pass')
         self.client.force_authenticate(user=self.user)
         self.url = '/expenditures/'
-        self.today = make_aware(datetime.now().replace(hour=0, minute=0, second=0, microsecond=0))
+        self.today = make_aware(datetime.now().replace(
+            hour=0, minute=0, second=0, microsecond=0))
 
     def test_create_expenditure_successfully(self):
         data = {
@@ -420,7 +423,8 @@ class ExpenditureViewSetTests(TestCase):
         }
         response = self.client.post(self.url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(Expenditure.objects.filter(owner=self.user, title='Rent').exists())
+        self.assertTrue(Expenditure.objects.filter(
+            owner=self.user, title='Rent').exists())
 
     def test_expenditure_requires_authentication(self):
         self.client.logout()
@@ -429,7 +433,8 @@ class ExpenditureViewSetTests(TestCase):
 
     def test_user_cannot_access_others_expenditure(self):
         other_exp = Expenditure.objects.create(
-            owner=self.other_user, title='Hidden', amount=1000, type='BILL', date=self.today
+            owner=self.other_user, title='Hidden', amount=1000,
+            type='BILL', date=self.today
         )
         response = self.client.get(f'{self.url}{other_exp.pk}/')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -482,20 +487,27 @@ class ExpenditureViewSetTests(TestCase):
         )
         response = self.client.delete(f'{self.url}{base.pk}/')
         self.assertEqual(response.status_code, 204)
-        self.assertFalse(Expenditure.objects.filter(repeat_group_id=group_id).exists())
+        self.assertFalse(Expenditure.objects.filter(
+            repeat_group_id=group_id).exists())
 
     def test_get_queryset_limits_to_current_user_and_month(self):
-        Expenditure.objects.create(owner=self.user, title='Valid', amount=1000, type='BILL', date=self.today)
-        Expenditure.objects.create(owner=self.other_user, title='Invalid', amount=1000, type='BILL', date=self.today)
+        Expenditure.objects.create(owner=self.user, title='Valid',
+                                   amount=1000, type='BILL', date=self.today)
+        Expenditure.objects.create(owner=self.other_user, title='Invalid',
+                                   amount=1000, type='BILL', date=self.today)
         response = self.client.get(self.url)
         titles = [e['title'] for e in response.data]
         self.assertIn('Valid', titles)
         self.assertNotIn('Invalid', titles)
 
     def test_list_returns_user_entries_only(self):
-        Expenditure.objects.create(owner=self.user, title="My Expense", amount=1000, date=self.today)
-        other_user = User.objects.create_user(username="intruder", password="hack")
-        Expenditure.objects.create(owner=other_user, title="Their Expense", amount=9999, date=self.today)
+        Expenditure.objects.create(
+            owner=self.user, title="My Expense", amount=1000,
+            date=self.today)
+        other_user = User.objects.create_user(username="intruder",
+                                              password="hack")
+        Expenditure.objects.create(owner=other_user, title="Their Expense",
+                                   amount=9999, date=self.today)
         response = self.client.get(self.url)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["title"], "My Expense")
@@ -510,10 +522,13 @@ class ExpenditureViewSetTests(TestCase):
         }
         response = self.client.post(self.url, payload, format="json")
         self.assertEqual(response.status_code, 201)
-        self.assertGreater(Expenditure.objects.filter(title="Gym", owner=self.user).count(), 1)
+        self.assertGreater(Expenditure.objects.filter(
+            title="Gym", owner=self.user).count(), 1)
 
     def test_retrieve_rejects_unauthorized_access(self):
-        entry = Expenditure.objects.create(owner=self.other_user, title="Private", amount=1000, date=self.today)
+        entry = Expenditure.objects.create(
+            owner=self.other_user, title="Private", amount=1000,
+            date=self.today)
         response = self.client.get(f"{self.url}{entry.pk}/")
         self.assertEqual(response.status_code, 403)
 
@@ -553,7 +568,8 @@ class ExpenditureViewSetTests(TestCase):
         self.assertGreater(len(updated), 1)
 
     def test_delete_non_repeated_deletes_only_one(self):
-        entry = Expenditure.objects.create(owner=self.user, title="One-off", amount=1000, date=self.today)
+        entry = Expenditure.objects.create(
+            owner=self.user, title="One-off", amount=1000, date=self.today)
         response = self.client.delete(f"{self.url}{entry.pk}/")
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Expenditure.objects.filter(pk=entry.pk).exists())
@@ -571,10 +587,12 @@ class ExpenditureViewSetTests(TestCase):
         )
         response = self.client.delete(f"{self.url}{base.pk}/")
         self.assertEqual(response.status_code, 204)
-        self.assertFalse(Expenditure.objects.filter(repeat_group_id=group_id).exists())
+        self.assertFalse(Expenditure.objects.filter(
+            repeat_group_id=group_id).exists())
 
     def test_invalid_update_returns_400(self):
-        entry = Expenditure.objects.create(owner=self.user, title="Original", amount=1000, date=self.today)
+        entry = Expenditure.objects.create(
+            owner=self.user, title="Original", amount=1000, date=self.today)
         bad_update = {"amount": "-99.99"}
         response = self.client.put(f"{self.url}{entry.pk}/", bad_update)
         self.assertEqual(response.status_code, 400)
@@ -599,8 +617,10 @@ class ExpenditureViewSetTests(TestCase):
 class IncomeViewSetTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(username='user1', password='pass')
-        self.other_user = User.objects.create_user(username='user2', password='pass')
+        self.user = User.objects.create_user(username='user1',
+                                             password='pass')
+        self.other_user = User.objects.create_user(
+            username='user2', password='pass')
         self.client.force_authenticate(self.user)
         self.url = '/income/'
         self.today = make_aware(datetime.today())
@@ -615,7 +635,8 @@ class IncomeViewSetTests(TestCase):
         }
         response = self.client.post(self.url, data, format='json')
         self.assertEqual(response.status_code, 201)
-        self.assertTrue(Income.objects.filter(owner=self.user, title='Salary').exists())
+        self.assertTrue(Income.objects.filter(
+            owner=self.user, title='Salary').exists())
 
     def test_unauthenticated_user_cannot_access(self):
         self.client.logout()
@@ -642,7 +663,8 @@ class IncomeViewSetTests(TestCase):
         response = self.client.post(self.url, data, format='json')
         self.assertEqual(response.status_code, 201)
         group_id = Income.objects.first().repeat_group_id
-        self.assertTrue(Income.objects.filter(repeat_group_id=group_id).count() > 1)
+        self.assertTrue(Income.objects.filter(
+            repeat_group_id=group_id).count() > 1)
 
     def test_user_can_delete_all_future_group(self):
         group_id = uuid.uuid4()
@@ -658,7 +680,8 @@ class IncomeViewSetTests(TestCase):
 
         response = self.client.delete(f"{self.url}{base.pk}/")
         self.assertEqual(response.status_code, 204)
-        self.assertFalse(Income.objects.filter(repeat_group_id=group_id).exists())
+        self.assertFalse(Income.objects.filter(
+            repeat_group_id=group_id).exists())
 
     def test_user_can_update_income_and_propagates(self):
         group_id = uuid.uuid4()
@@ -679,7 +702,8 @@ class IncomeViewSetTests(TestCase):
             "repeated": "WEEKLY"
         }
 
-        response = self.client.put(f"{self.url}{base.pk}/", payload, format='json')
+        response = self.client.put(
+            f"{self.url}{base.pk}/", payload, format='json')
         self.assertEqual(response.status_code, 200)
 
         future.refresh_from_db()
@@ -710,8 +734,10 @@ class IncomeViewSetTests(TestCase):
         self.assertNotIn("Old", titles)
 
     def test_user_cannot_create_income_for_another_user(self):
-        """Should ignore owner field in payload and always assign logged-in user."""
-        attacker = User.objects.create_user(username='attacker', password='hack')
+        """Should ignore owner field in payload
+        and always assign logged-in user."""
+        attacker = User.objects.create_user(
+            username='attacker', password='hack')
         data = {
             'title': 'Malicious Income',
             'amount': 100.00,
@@ -726,16 +752,20 @@ class IncomeViewSetTests(TestCase):
 
     def test_partial_update_single_field(self):
         """Should allow PATCH to update a single field."""
-        entry = Income.objects.create(owner=self.user, title='Original', amount=1000, date=self.today)
-        response = self.client.patch(f"{self.url}{entry.pk}/", {'title': 'Updated'})
+        entry = Income.objects.create(
+            owner=self.user, title='Original', amount=1000, date=self.today)
+        response = self.client.patch(
+            f"{self.url}{entry.pk}/", {'title': 'Updated'})
         self.assertEqual(response.status_code, 200)
         entry.refresh_from_db()
         self.assertEqual(entry.title, 'Updated')
 
     def test_update_invalid_amount_format(self):
         """Should return 400 if amount is invalid."""
-        entry = Income.objects.create(owner=self.user, title='Bad Format', amount=1000, date=self.today)
-        response = self.client.put(f"{self.url}{entry.pk}/", {
+        entry = Income.objects.create(
+            owner=self.user, title='Bad Format', amount=1000, date=self.today)
+        response = self.client.put(
+            f"{self.url}{entry.pk}/", {
             'title': 'Invalid',
             'amount': 'not-a-number',
             'date': self.today.date(),
@@ -754,13 +784,15 @@ class IncomeViewSetTests(TestCase):
         response = self.client.post(self.url, data, format='json')
         self.assertEqual(response.status_code, 201)
         group_id = Income.objects.first().repeat_group_id
-        self.assertTrue(Income.objects.filter(repeat_group_id=group_id).count() > 1)
+        self.assertTrue(Income.objects.filter(
+            repeat_group_id=group_id).count() > 1)
 
     def test_group_update_changes_repeat_group_id(self):
         """Should assign new group ID on update of repeated entry."""
         group_id = uuid.uuid4()
-        entry = Income.objects.create(owner=self.user, title='GID Test', amount=1000,
-                                      repeated='WEEKLY', repeat_group_id=group_id, date=self.today)
+        entry = Income.objects.create(
+            owner=self.user, title='GID Test', amount=1000,
+            repeated='WEEKLY', repeat_group_id=group_id, date=self.today)
 
         response = self.client.put(f"{self.url}{entry.pk}/", {
             'title': 'GID Updated',
@@ -774,14 +806,17 @@ class IncomeViewSetTests(TestCase):
 
     def test_accessing_nonexistent_entry_returns_403(self):
         """Should return 403 instead of leaking 404 if entry isn't owned."""
-        other_user = User.objects.create_user(username='hacker', password='pass')
-        other_entry = Income.objects.create(owner=other_user, title='Invisible', amount=1000, date=self.today)
+        other_user = User.objects.create_user(
+            username='hacker', password='pass')
+        other_entry = Income.objects.create(
+            owner=other_user, title='Invisible', amount=1000, date=self.today)
         response = self.client.get(f"{self.url}{other_entry.pk}/")
         self.assertEqual(response.status_code, 403)
 
     def test_can_retrieve_own_income_entry(self):
         """Should allow user to retrieve their own income."""
-        entry = Income.objects.create(owner=self.user, title='Retrievable', amount=999, date=self.today)
+        entry = Income.objects.create(
+            owner=self.user, title='Retrievable', amount=999, date=self.today)
         response = self.client.get(f"{self.url}{entry.pk}/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['title'], 'Retrievable')
@@ -789,15 +824,18 @@ class IncomeViewSetTests(TestCase):
     def test_future_only_updated_on_group_edit(self):
         """Should update only future entries in repeat group, not past."""
         group_id = uuid.uuid4()
-        past = Income.objects.create(owner=self.user, title='Past', amount=1000,
-                                     repeated='WEEKLY', repeat_group_id=group_id,
-                                     date=self.today - timedelta(weeks=1))
-        current = Income.objects.create(owner=self.user, title='Current', amount=1000,
-                                        repeated='WEEKLY', repeat_group_id=group_id,
-                                        date=self.today)
-        future = Income.objects.create(owner=self.user, title='Future', amount=1000,
-                                       repeated='WEEKLY', repeat_group_id=group_id,
-                                       date=self.today + timedelta(weeks=1))
+        past = Income.objects.create(
+            owner=self.user, title='Past', amount=1000,
+            repeated='WEEKLY', repeat_group_id=group_id,
+            date=self.today - timedelta(weeks=1))
+        current = Income.objects.create(
+            owner=self.user, title='Current', amount=1000,
+            repeated='WEEKLY', repeat_group_id=group_id,
+            date=self.today)
+        future = Income.objects.create(
+            owner=self.user, title='Future', amount=1000,
+            repeated='WEEKLY', repeat_group_id=group_id,
+            date=self.today + timedelta(weeks=1))
 
         response = self.client.put(f"{self.url}{current.pk}/", {
             'title': 'Updated Title',
@@ -812,3 +850,145 @@ class IncomeViewSetTests(TestCase):
         self.assertEqual(past.title, 'Past')
         self.assertEqual(future.title, 'Updated Title')
         self.assertEqual(future.amount, 7700)
+
+
+class MonthlySummaryViewTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username='testuser', password='pass')
+        self.other_user = User.objects.create_user(
+            username='testuser2', password='pass')
+        self.client.force_authenticate(self.user)
+        self.url = '/monthly-summary/'
+        self.today = make_aware(datetime.today())
+
+    def test_returns_correct_aggregated_totals(self):
+        """Should return correct totals for each financial category"""
+        # Setup
+        Income.objects.create(owner=self.user, title="Salary",
+                              amount=100000, date=self.today)
+        Expenditure.objects.create(owner=self.user, title="Rent",
+                                   amount=50000, type="BILL", date=self.today)
+        Expenditure.objects.create(owner=self.user, title="Save",
+                                   amount=10000, type="SAVING",
+                                   date=self.today)
+        Expenditure.objects.create(owner=self.user, title="Invest",
+                                   amount=5000, type="INVESTMENT",
+                                   date=self.today)
+        DisposableIncomeSpending.objects.create(owner=self.user,
+                                                title="Coffee",
+                                                amount=1500, date=self.today)
+        DisposableIncomeBudget.objects.create(owner=self.user,
+                                              amount=10000, date=self.today)
+
+        # Action
+        response = self.client.get(self.url)
+
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["formatted_income"], "£1000.00")
+        self.assertEqual(response.data["formatted_bills"], "£500.00")
+        self.assertEqual(response.data["formatted_saving"], "£100.00")
+        self.assertEqual(response.data["formatted_investment"], "£50.00")
+        self.assertEqual(
+            response.data["formatted_disposable_spending"], "£15.00")
+        self.assertEqual(response.data["formatted_total"], "£335.00")
+        self.assertEqual(response.data["formatted_budget"], "£100.00")
+        self.assertEqual(
+            response.data["formatted_remaining_disposable"], "£85.00")
+
+    def test_returns_zero_when_no_entries_exist(self):
+        """Should return 0.00 for all categories when no data exists"""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["formatted_income"], "£0.00")
+        self.assertEqual(response.data["formatted_bills"], "£0.00")
+        self.assertEqual(response.data["formatted_saving"], "£0.00")
+        self.assertEqual(response.data["formatted_investment"], "£0.00")
+        self.assertEqual(
+            response.data["formatted_disposable_spending"], "£0.00")
+        self.assertEqual(response.data["formatted_total"], "£0.00")
+        self.assertEqual(response.data["formatted_budget"], "£0.00")
+        self.assertEqual(
+            response.data["formatted_remaining_disposable"], "£0.00")
+
+    def test_only_current_month_data_is_counted(self):
+        """Should only include entries from the current month"""
+        past_date = self.today - timedelta(days=40)
+
+        # Add older data
+        Income.objects.create(owner=self.user, title="Old",
+                              amount=5000, date=past_date)
+        Expenditure.objects.create(owner=self.user, title="Old Rent",
+                                   amount=5000, type="BILL", date=past_date)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["formatted_income"], "£0.00")
+        self.assertEqual(response.data["formatted_bills"], "£0.00")
+
+    def test_requires_authentication(self):
+        """Should reject unauthenticated requests with 403"""
+        self.client.logout()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_entries_outside_date_range_are_excluded(self):
+        """Should not count entries just before or after the selected month"""
+        # One day before the start of the month
+        last_month_end = self.today.replace(day=1) - timedelta(days=1)
+        Income.objects.create(
+            owner=self.user, title="Old", amount=9999, date=last_month_end)
+
+        # One day after the end of the month
+        next_month = self.today.replace(day=28) + timedelta(days=5)
+        Income.objects.create(
+            owner=self.user, title="Too Late", amount=9999, date=next_month)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["formatted_income"], "£0.00")
+
+    def test_other_users_data_not_included(self):
+        """Should exclude financial data from other users"""
+        Income.objects.create(
+            owner=self.user, title="Mine", amount=10000, date=self.today)
+        Income.objects.create(
+            owner=self.other_user, title="Theirs",
+            amount=99999, date=self.today)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["formatted_income"], "£100.00")
+
+    def test_works_without_budget_entry(self):
+        """Should not raise error if no DisposableIncomeBudget exists"""
+        Income.objects.create(
+            owner=self.user, title="Side Job", amount=20000, date=self.today)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["formatted_budget"], "£0.00")
+
+    def test_disposable_remaining_can_be_negative(self):
+        """Should return negative value if user overspends disposable income"""
+        DisposableIncomeSpending.objects.create(
+            owner=self.user, title="Trip", amount=15000, date=self.today)
+        DisposableIncomeBudget.objects.create(
+            owner=self.user, amount=10000, date=self.today)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["formatted_remaining_disposable"],
+                         "-£50.00")
+
+    def test_partial_data_still_returns_full_structure(self):
+        """Should return valid response with only income present"""
+        Income.objects.create(owner=self.user, title="Salary",
+                              amount=50000, date=self.today)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["formatted_income"], "£500.00")
+        self.assertEqual(response.data["formatted_bills"], "£0.00")
+        self.assertEqual(
+            response.data["formatted_remaining_disposable"], "£0.00")
