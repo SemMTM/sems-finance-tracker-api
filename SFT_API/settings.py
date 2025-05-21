@@ -83,7 +83,7 @@ REST_AUTH = {
     'USE_JWT': True,
     'JWT_AUTH_COOKIE': 'accessToken',
     'JWT_AUTH_REFRESH_COOKIE': 'refreshToken',
-    'JWT_AUTH_SAMESITE': 'Lax',
+    'JWT_AUTH_SAMESITE': os.environ.get("SAME_SITE"),
     'JWT_AUTH_SECURE': not DEBUG,
     'JWT_AUTH_HTTPONLY': True
 }
