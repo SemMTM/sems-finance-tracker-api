@@ -594,3 +594,221 @@ class ExpenditureViewSetTests(TestCase):
         self.client.logout()
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 403)
+
+
+class IncomeViewSetTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(username='user1', password='pass')
+        self.other_user = User.objects.create_user(username='user2', password='pass')
+        self.client.force_authenticate(self.user)
+        self.url = '/income/'
+        self.today = make_aware(datetime.today())
+        self.today_date = self.today.date()
+
+    def test_authenticated_user_can_create_income(self):
+        data = {
+            'title': 'Salary',
+            'amount': 150.00,
+            'date': self.today_date,
+            'repeated': 'NEVER'
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(Income.objects.filter(owner=self.user, title='Salary').exists())
+
+    def test_unauthenticated_user_cannot_access(self):
+        self.client.logout()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_user_cannot_access_others_income(self):
+        other_entry = Income.objects.create(
+            owner=self.other_user,
+            title='Hacked',
+            amount=10000,
+            date=self.today
+        )
+        response = self.client.get(f"{self.url}{other_entry.pk}/")
+        self.assertEqual(response.status_code, 403)
+
+    def test_repeat_weekly_generates_additional_entries(self):
+        data = {
+            'title': 'Weekly Pay',
+            'amount': 100.00,
+            'repeated': 'WEEKLY',
+            'date': self.today_date
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, 201)
+        group_id = Income.objects.first().repeat_group_id
+        self.assertTrue(Income.objects.filter(repeat_group_id=group_id).count() > 1)
+
+    def test_user_can_delete_all_future_group(self):
+        group_id = uuid.uuid4()
+        base = Income.objects.create(
+            owner=self.user, title='Repeat', amount=1000,
+            repeated='MONTHLY', repeat_group_id=group_id, date=self.today
+        )
+        future = Income.objects.create(
+            owner=self.user, title='Repeat', amount=1000,
+            repeated='MONTHLY', repeat_group_id=group_id,
+            date=self.today + timedelta(days=30)
+        )
+
+        response = self.client.delete(f"{self.url}{base.pk}/")
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Income.objects.filter(repeat_group_id=group_id).exists())
+
+    def test_user_can_update_income_and_propagates(self):
+        group_id = uuid.uuid4()
+        base = Income.objects.create(
+            owner=self.user, title="Old", amount=1000,
+            date=self.today, repeated="WEEKLY", repeat_group_id=group_id
+        )
+        future = Income.objects.create(
+            owner=self.user, title="Old", amount=1000,
+            date=self.today + timedelta(days=7),
+            repeated="WEEKLY", repeat_group_id=group_id
+        )
+
+        payload = {
+            "title": "New Title",
+            "amount": "50.00",
+            "date": self.today_date,
+            "repeated": "WEEKLY"
+        }
+
+        response = self.client.put(f"{self.url}{base.pk}/", payload, format='json')
+        self.assertEqual(response.status_code, 200)
+
+        future.refresh_from_db()
+        self.assertEqual(future.title, "New Title")
+        self.assertEqual(future.amount, 5000)
+
+    def test_invalid_update_returns_400(self):
+        entry = Income.objects.create(
+            owner=self.user, title="Job", amount=1000, date=self.today
+        )
+        payload = {"amount": "-99.99"}
+        response = self.client.put(f"{self.url}{entry.pk}/", payload)
+        self.assertEqual(response.status_code, 400)
+
+    def test_list_shows_only_current_month_entries(self):
+        Income.objects.create(
+            owner=self.user, title="Current", amount=1000, date=self.today
+        )
+        Income.objects.create(
+            owner=self.user, title="Old", amount=1000,
+            date=self.today - timedelta(days=45)
+        )
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        titles = [entry["title"] for entry in response.data]
+        self.assertIn("Current", titles)
+        self.assertNotIn("Old", titles)
+
+    def test_user_cannot_create_income_for_another_user(self):
+        """Should ignore owner field in payload and always assign logged-in user."""
+        attacker = User.objects.create_user(username='attacker', password='hack')
+        data = {
+            'title': 'Malicious Income',
+            'amount': 100.00,
+            'date': self.today.date(),
+            'repeated': 'NEVER',
+            'owner': attacker.pk  # Should be ignored
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, 201)
+        income = Income.objects.get(title='Malicious Income')
+        self.assertEqual(income.owner, self.user)
+
+    def test_partial_update_single_field(self):
+        """Should allow PATCH to update a single field."""
+        entry = Income.objects.create(owner=self.user, title='Original', amount=1000, date=self.today)
+        response = self.client.patch(f"{self.url}{entry.pk}/", {'title': 'Updated'})
+        self.assertEqual(response.status_code, 200)
+        entry.refresh_from_db()
+        self.assertEqual(entry.title, 'Updated')
+
+    def test_update_invalid_amount_format(self):
+        """Should return 400 if amount is invalid."""
+        entry = Income.objects.create(owner=self.user, title='Bad Format', amount=1000, date=self.today)
+        response = self.client.put(f"{self.url}{entry.pk}/", {
+            'title': 'Invalid',
+            'amount': 'not-a-number',
+            'date': self.today.date(),
+            'repeated': 'NEVER'
+        })
+        self.assertEqual(response.status_code, 400)
+
+    def test_repeat_monthly_generates_entries(self):
+        """Should auto-generate entries for monthly repeated income."""
+        data = {
+            'title': 'Retainer',
+            'amount': 200.00,
+            'date': self.today.date(),
+            'repeated': 'MONTHLY'
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, 201)
+        group_id = Income.objects.first().repeat_group_id
+        self.assertTrue(Income.objects.filter(repeat_group_id=group_id).count() > 1)
+
+    def test_group_update_changes_repeat_group_id(self):
+        """Should assign new group ID on update of repeated entry."""
+        group_id = uuid.uuid4()
+        entry = Income.objects.create(owner=self.user, title='GID Test', amount=1000,
+                                      repeated='WEEKLY', repeat_group_id=group_id, date=self.today)
+
+        response = self.client.put(f"{self.url}{entry.pk}/", {
+            'title': 'GID Updated',
+            'amount': '60.00',
+            'date': self.today.date(),
+            'repeated': 'WEEKLY'
+        })
+
+        entry.refresh_from_db()
+        self.assertNotEqual(entry.repeat_group_id, group_id)
+
+    def test_accessing_nonexistent_entry_returns_403(self):
+        """Should return 403 instead of leaking 404 if entry isn't owned."""
+        other_user = User.objects.create_user(username='hacker', password='pass')
+        other_entry = Income.objects.create(owner=other_user, title='Invisible', amount=1000, date=self.today)
+        response = self.client.get(f"{self.url}{other_entry.pk}/")
+        self.assertEqual(response.status_code, 403)
+
+    def test_can_retrieve_own_income_entry(self):
+        """Should allow user to retrieve their own income."""
+        entry = Income.objects.create(owner=self.user, title='Retrievable', amount=999, date=self.today)
+        response = self.client.get(f"{self.url}{entry.pk}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['title'], 'Retrievable')
+
+    def test_future_only_updated_on_group_edit(self):
+        """Should update only future entries in repeat group, not past."""
+        group_id = uuid.uuid4()
+        past = Income.objects.create(owner=self.user, title='Past', amount=1000,
+                                     repeated='WEEKLY', repeat_group_id=group_id,
+                                     date=self.today - timedelta(weeks=1))
+        current = Income.objects.create(owner=self.user, title='Current', amount=1000,
+                                        repeated='WEEKLY', repeat_group_id=group_id,
+                                        date=self.today)
+        future = Income.objects.create(owner=self.user, title='Future', amount=1000,
+                                       repeated='WEEKLY', repeat_group_id=group_id,
+                                       date=self.today + timedelta(weeks=1))
+
+        response = self.client.put(f"{self.url}{current.pk}/", {
+            'title': 'Updated Title',
+            'amount': '77.00',
+            'date': current.date.date(),
+            'repeated': 'WEEKLY'
+        })
+
+        self.assertEqual(response.status_code, 200)
+        past.refresh_from_db()
+        future.refresh_from_db()
+        self.assertEqual(past.title, 'Past')
+        self.assertEqual(future.title, 'Updated Title')
+        self.assertEqual(future.amount, 7700)
