@@ -992,3 +992,76 @@ class MonthlySummaryViewTests(TestCase):
         self.assertEqual(response.data["formatted_bills"], "£0.00")
         self.assertEqual(
             response.data["formatted_remaining_disposable"], "£0.00")
+
+
+class WeeklySummaryViewTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(username="tester", password="pass")
+        self.other_user = User.objects.create_user(username="intruder", password="pass")
+        self.client.force_authenticate(self.user)
+        self.url = "/weekly-summary/"
+        self.today = make_aware(datetime.today())
+
+    def test_returns_weekly_data_structure(self):
+        """Should return a list of weekly summary dictionaries."""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("weeks", response.data)
+        self.assertIsInstance(response.data["weeks"], list)
+        for week in response.data["weeks"]:
+            self.assertIn("week_start", week)
+            self.assertIn("week_end", week)
+            self.assertIn("income", week)
+            self.assertIn("cost", week)
+            self.assertIn("summary", week)
+
+    def test_weekly_sums_include_all_sources(self):
+        """Should sum income, expenditure, and disposable spending into cost."""
+        # Week range should include this
+        base_date = make_aware(datetime.today().replace(day=1, hour=0, minute=0))
+
+        Income.objects.create(owner=self.user, title="Job", amount=50000, date=base_date)
+        Expenditure.objects.create(owner=self.user, title="Rent", amount=20000, date=base_date)
+        DisposableIncomeSpending.objects.create(owner=self.user, title="Snacks", amount=5000, date=base_date)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        week = response.data["weeks"][0]
+        self.assertEqual(week["income"], "£500.00")
+        self.assertEqual(week["cost"], "£250.00")
+        self.assertEqual(week["summary"], "£250.00")
+
+    def test_excludes_other_users_data(self):
+        """Should not include any financial data from another user."""
+        base_date = make_aware(datetime.today().replace(day=1, hour=0, minute=0))
+
+        Income.objects.create(owner=self.user, title="My Salary", amount=30000, date=base_date)
+        Income.objects.create(owner=self.other_user, title="Their Salary", amount=99999, date=base_date)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        week = response.data["weeks"][0]
+        self.assertEqual(week["income"], "£300.00")
+
+    def test_requires_authentication(self):
+        """Should return 403 if user is not logged in."""
+        self.client.logout()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_correct_week_boundaries(self):
+        """Should show correct ISO format week_start and week_end dates."""
+        response = self.client.get(self.url)
+        week = response.data["weeks"][0]
+        self.assertRegex(week["week_start"], r"^\d{4}-\d{2}-\d{2}$")
+        self.assertRegex(week["week_end"], r"^\d{4}-\d{2}-\d{2}$")
+
+    def test_works_with_no_data(self):
+        """Should return zeroed-out weekly summaries when no entries exist."""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        for week in response.data["weeks"]:
+            self.assertEqual(week["income"], "£0.00")
+            self.assertEqual(week["cost"], "£0.00")
+            self.assertEqual(week["summary"], "£0.00")
