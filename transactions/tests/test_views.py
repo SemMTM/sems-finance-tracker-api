@@ -997,8 +997,10 @@ class MonthlySummaryViewTests(TestCase):
 class WeeklySummaryViewTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(username="tester", password="pass")
-        self.other_user = User.objects.create_user(username="intruder", password="pass")
+        self.user = User.objects.create_user(
+            username="tester", password="pass")
+        self.other_user = User.objects.create_user(
+            username="intruder", password="pass")
         self.client.force_authenticate(self.user)
         self.url = "/weekly-summary/"
         self.today = make_aware(datetime.today())
@@ -1017,13 +1019,18 @@ class WeeklySummaryViewTests(TestCase):
             self.assertIn("summary", week)
 
     def test_weekly_sums_include_all_sources(self):
-        """Should sum income, expenditure, and disposable spending into cost."""
+        """Should sum income, expenditure, and
+        disposable spending into cost."""
         # Week range should include this
-        base_date = make_aware(datetime.today().replace(day=1, hour=0, minute=0))
+        base_date = make_aware(datetime.today().replace(
+            day=1, hour=0, minute=0))
 
-        Income.objects.create(owner=self.user, title="Job", amount=50000, date=base_date)
-        Expenditure.objects.create(owner=self.user, title="Rent", amount=20000, date=base_date)
-        DisposableIncomeSpending.objects.create(owner=self.user, title="Snacks", amount=5000, date=base_date)
+        Income.objects.create(
+            owner=self.user, title="Job", amount=50000, date=base_date)
+        Expenditure.objects.create(
+            owner=self.user, title="Rent", amount=20000, date=base_date)
+        DisposableIncomeSpending.objects.create(
+            owner=self.user, title="Snacks", amount=5000, date=base_date)
 
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
@@ -1034,10 +1041,13 @@ class WeeklySummaryViewTests(TestCase):
 
     def test_excludes_other_users_data(self):
         """Should not include any financial data from another user."""
-        base_date = make_aware(datetime.today().replace(day=1, hour=0, minute=0))
+        base_date = make_aware(datetime.today().replace(
+            day=1, hour=0, minute=0))
 
-        Income.objects.create(owner=self.user, title="My Salary", amount=30000, date=base_date)
-        Income.objects.create(owner=self.other_user, title="Their Salary", amount=99999, date=base_date)
+        Income.objects.create(owner=self.user, title="My Salary",
+                              amount=30000, date=base_date)
+        Income.objects.create(owner=self.other_user, title="Their Salary",
+                              amount=99999, date=base_date)
 
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
