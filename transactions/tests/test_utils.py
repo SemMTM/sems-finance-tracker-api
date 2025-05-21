@@ -4,7 +4,10 @@ from django.utils.timezone import make_aware
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from transactions.models import Income
-from transactions.utils import generate_weekly_repeats_for_6_months
+from transactions.utils import (
+    generate_weekly_repeats_for_6_months,
+    generate_monthly_repeats_for_6_months
+  )
 import uuid
 
 
@@ -108,3 +111,77 @@ class GenerateWeeklyRepeatsTests(TestCase):
         generate_weekly_repeats_for_6_months(self.entry, Income)
         self.entry.refresh_from_db()
         self.assertEqual(self.entry.repeat_group_id, manual_id)
+
+
+class GenerateMonthlyRepeatsTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester", password="pass")
+        self.base_date = make_aware(datetime(2025, 1, 31))
+        self.entry = Income.objects.create(
+            owner=self.user,
+            title="Monthly Salary",
+            amount=10000,
+            repeated="MONTHLY",
+            date=self.base_date,
+            repeat_group_id=None,
+        )
+
+    def test_creates_repeats_for_next_5_months(self):
+        """Should create 5 monthly repeat entries from the base date."""
+        generate_monthly_repeats_for_6_months(self.entry, Income)
+        repeats = Income.objects.filter(
+            repeat_group_id=self.entry.repeat_group_id).exclude(
+                pk=self.entry.pk)
+        self.assertEqual(repeats.count(), 5)
+
+    def test_repeat_group_id_is_created_if_missing(self):
+        """Should assign a repeat_group_id to base entry if missing."""
+        self.assertIsNone(self.entry.repeat_group_id)
+        generate_monthly_repeats_for_6_months(self.entry, Income)
+        self.entry.refresh_from_db()
+        self.assertIsInstance(self.entry.repeat_group_id, uuid.UUID)
+
+    def test_copies_relevant_fields_from_base(self):
+        """Each repeated entry should copy key fields from base entry."""
+        generate_monthly_repeats_for_6_months(self.entry, Income)
+        for repeat in Income.objects.filter(
+            repeat_group_id=self.entry.repeat_group_id).exclude(
+                pk=self.entry.pk):
+            self.assertEqual(repeat.title, self.entry.title)
+            self.assertEqual(repeat.amount, self.entry.amount)
+            self.assertEqual(repeat.repeated, self.entry.repeated)
+            self.assertEqual(repeat.owner, self.entry.owner)
+
+    def test_preserves_existing_repeat_group_id(self):
+        """Should not overwrite manually set repeat_group_id."""
+        manual_id = uuid.uuid4()
+        self.entry.repeat_group_id = manual_id
+        self.entry.save(update_fields=["repeat_group_id"])
+        generate_monthly_repeats_for_6_months(self.entry, Income)
+        self.entry.refresh_from_db()
+        self.assertEqual(self.entry.repeat_group_id, manual_id)
+
+    def test_rollover_behavior_preserves_monthly_semantics(self):
+        """
+        Should roll forward to valid last day if base day doesn't exist in target month,
+        and resume original day when possible.
+        """
+        self.entry.date = make_aware(datetime(2025, 1, 31))  # Jan 31
+        self.entry.save()
+
+        generate_monthly_repeats_for_6_months(self.entry, Income)
+
+        repeats = Income.objects.filter(
+            repeat_group_id=self.entry.repeat_group_id
+        ).exclude(pk=self.entry.pk).order_by('date')
+
+        dates = [r.date.date() for r in repeats]
+        expected = [
+            datetime(2025, 2, 28).date(),  # Feb adjusts to 28 (2025 is not leap year)
+            datetime(2025, 3, 31).date(),  # March supports 31
+            datetime(2025, 4, 30).date(),  # April max is 30
+            datetime(2025, 5, 31).date(),
+            datetime(2025, 6, 30).date(),
+        ]
+
+        self.assertEqual(dates, expected)
