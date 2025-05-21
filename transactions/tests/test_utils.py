@@ -187,7 +187,7 @@ class GenerateMonthlyRepeatsTests(TestCase):
 
         dates = [r.date.date() for r in repeats]
         expected = [
-            datetime(2025, 2, 28).date(),  
+            datetime(2025, 2, 28).date(),
             # Feb adjusts to 28 (2025 is not leap year)
             datetime(2025, 3, 31).date(),  # March supports 31
             datetime(2025, 4, 30).date(),  # April max is 30
@@ -200,7 +200,8 @@ class GenerateMonthlyRepeatsTests(TestCase):
 
 class Generate6thMonthRepeatsTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="tester", password="pass")
+        self.user = User.objects.create_user(
+            username="tester", password="pass")
         self.current_month = datetime(2025, 1, 1)
         self.fifth_month = make_aware(
             self.current_month + relativedelta(months=4))
