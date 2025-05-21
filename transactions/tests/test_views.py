@@ -2,7 +2,7 @@ import uuid
 from django.test import TestCase
 from rest_framework.test import APIClient
 from django.contrib.auth.models import User
-from django.utils.timezone import now
+from django.utils.timezone import now, make_aware
 from transactions.models import (
     Income,
     Expenditure,
@@ -10,7 +10,7 @@ from transactions.models import (
     Currency,
     DisposableIncomeBudget,
   )
-from datetime import timedelta
+from datetime import timedelta, datetime
 from urllib.parse import urlencode
 from dateutil.relativedelta import relativedelta
 from rest_framework import status
@@ -404,8 +404,10 @@ class DisposableIncomeSpendingViewSetTests(TestCase):
 class ExpenditureViewSetTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.user = User.objects.create_user(username='testuser', password='pass')
-        self.other_user = User.objects.create_user(username='other', password='pass')
+        self.user = User.objects.create_user(
+            username='testuser', password='pass')
+        self.other_user = User.objects.create_user(
+            username='other', password='pass')
         self.client.force_authenticate(user=self.user)
         self.url = '/expenditures/'
 
@@ -420,7 +422,8 @@ class ExpenditureViewSetTests(TestCase):
         }
         response = self.client.post(self.url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(Expenditure.objects.filter(owner=self.user, title='Rent').exists())
+        self.assertTrue(Expenditure.objects.filter(owner=self.user,
+                                                   title='Rent').exists())
 
     def test_expenditure_requires_authentication(self):
         """Should reject unauthenticated requests with 403"""
@@ -512,7 +515,8 @@ class ExpenditureViewSetTests(TestCase):
 
         response = self.client.delete(f'{self.url}{base.pk}/')
         self.assertEqual(response.status_code, 204)
-        self.assertFalse(Expenditure.objects.filter(repeat_group_id=base.repeat_group_id).exists())
+        self.assertFalse(Expenditure.objects.filter(
+            repeat_group_id=base.repeat_group_id).exists())
 
     def test_get_queryset_limits_to_current_user_and_month(self):
         """Should only return the current user's entries for this month"""
@@ -535,3 +539,151 @@ class ExpenditureViewSetTests(TestCase):
         titles = [e['title'] for e in response.data]
         self.assertIn('Valid', titles)
         self.assertNotIn('Invalid', titles)
+
+    def test_list_returns_user_entries_only(self):
+        """Should return only expenditures belonging to the
+        authenticated user."""
+        Expenditure.objects.create(owner=self.user, title="My Expense",
+                                   amount=1000, date=now())
+        other_user = User.objects.create_user(username="intruder",
+                                              password="hack")
+        Expenditure.objects.create(owner=other_user,
+                                   title="Their Expense", amount=9999,
+                                   date=now())
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["title"], "My Expense")
+
+    def test_create_adds_owner_and_generates_repeats(self):
+        """Should assign owner and generate repeats if 'WEEKLY' or
+        'MONTHLY'."""
+        payload = {
+            "title": "Gym",
+            "amount": "10.00",
+            "type": "BILL",
+            "repeated": "WEEKLY",
+            "date": now().date().isoformat(),
+        }
+        response = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response.status_code, 201)
+
+        all_entries = Expenditure.objects.filter(title="Gym", owner=self.user)
+        self.assertGreater(len(all_entries), 1)  # Includes repeat entries
+
+    def test_retrieve_rejects_unauthorized_access(self):
+        """Should return 403 if accessing another user's expenditure."""
+        other_user = User.objects.create_user(username="hacker",
+                                              password="badpass")
+        entry = Expenditure.objects.create(
+            owner=other_user, title="Private", amount=1000, date=now()
+        )
+
+        response = self.client.get(f"{self.url}{entry.pk}/")
+        self.assertEqual(response.status_code, 403)
+
+    def test_partial_update_does_not_affect_unrelated_entries(self):
+        """Should update only matching group entries and not others."""
+        today = now()
+        entry = Expenditure.objects.create(
+            owner=self.user, title="A", amount=1000, repeated="WEEKLY",
+            repeat_group_id=uuid.uuid4(), date=today
+        )
+        Expenditure.objects.create(
+            owner=self.user, title="B", amount=2000,
+            repeat_group_id=uuid.uuid4(),
+            repeated="WEEKLY", date=today + timedelta(weeks=1)
+        )
+
+        update = {"title": "Updated A"}
+        response = self.client.patch(f"{self.url}{entry.pk}/", update)
+        self.assertEqual(response.status_code, 200)
+
+        self.assertTrue(Expenditure.objects.filter(title="Updated A").exists())
+        self.assertTrue(Expenditure.objects.filter(title="B").exists())
+
+    def test_future_entries_updated_on_edit(self):
+        """Should only update future entries (not past)
+        within the same group."""
+        today = now()
+        group_id = uuid.uuid4()
+        base = Expenditure.objects.create(
+            owner=self.user,
+            title="Old",
+            amount=1000,
+            repeat_group_id=group_id,
+            repeated="WEEKLY",
+            date=today
+        )
+        Expenditure.objects.create(
+            owner=self.user, title="Old", amount=1000,
+            repeat_group_id=group_id,
+            repeated="WEEKLY", date=today + timedelta(days=7)
+        )
+
+        update = {
+            "title": "New Title",
+            "amount": "15.00",
+            "type": "BILL",
+            "repeated": "WEEKLY",
+            "date": today.date().isoformat()
+            }
+        response = self.client.put(f"{self.url}{base.pk}/", update)
+        self.assertEqual(response.status_code, 200)
+
+        updated = Expenditure.objects.filter(title="New Title")
+        self.assertGreater(len(updated), 1)
+
+    def test_delete_non_repeated_deletes_only_one(self):
+        """Should delete only the current entry if it is not repeated."""
+        entry = Expenditure.objects.create(owner=self.user, title="One-off",
+                                           amount=1000, date=now())
+        response = self.client.delete(f"{self.url}{entry.pk}/")
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Expenditure.objects.filter(pk=entry.pk).exists())
+
+    def test_delete_repeated_deletes_future_group(self):
+        """Should delete all future entries in the repeat group."""
+        base_date = make_aware(datetime(2025, 5, 21))
+        group_id = uuid.uuid4()
+        base = Expenditure.objects.create(
+            owner=self.user, title='Rent', amount=10000, repeated='WEEKLY',
+            date=base_date, type='BILL', repeat_group_id=group_id
+        )
+        Expenditure.objects.create(
+            owner=self.user, title='Rent', amount=10000, repeated='WEEKLY',
+            date=base_date + timedelta(days=7), type='BILL',
+            repeat_group_id=group_id
+        )
+
+        response = self.client.delete(f"{self.url}{base.pk}/")
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Expenditure.objects.filter(
+            repeat_group_id=group_id).exists())
+
+    def test_invalid_update_returns_400(self):
+        """Should reject updates with invalid fields."""
+        entry = Expenditure.objects.create(
+            owner=self.user, title="Original", amount=1000, date=now())
+        bad_update = {"amount": "-99.99"}
+        response = self.client.put(f"{self.url}{entry.pk}/", bad_update)
+        self.assertEqual(response.status_code, 400)
+
+    def test_create_with_invalid_currency_format_fails(self):
+        """Should return 400 if invalid currency value is provided."""
+        payload = {
+            "title": "Bad Entry",
+            "amount": "invalid",
+            "type": "BILL",
+            "repeated": "NONE",
+            "date": now().date().isoformat(),
+        }
+        response = self.client.post(self.url, payload, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    def test_anonymous_user_cannot_access_view(self):
+        """Should return 403 if user is not authenticated."""
+        self.client.logout()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 403)

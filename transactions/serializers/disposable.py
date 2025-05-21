@@ -129,9 +129,11 @@ class DisposableIncomeSpendingSerializer(serializers.ModelSerializer):
         Convert pounds (as decimal) to pence (as integer) before saving.
         """
         data = super().to_internal_value(data)
-        data['amount'] = int(
-            Decimal(data['amount']).quantize(Decimal('0.01')) * 100
-        )
+
+        if "amount" in data:
+            data['amount'] = int(
+                Decimal(data['amount']).quantize(Decimal('0.01')) * 100
+            )
         return data
 
     def validate_amount(self, value):
