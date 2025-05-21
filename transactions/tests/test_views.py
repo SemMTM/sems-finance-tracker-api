@@ -2,11 +2,13 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 from django.contrib.auth.models import User
 from django.utils.timezone import now
-from transactions.models import Income, Expenditure, DisposableIncomeSpending
+from transactions.models import Income, Expenditure, DisposableIncomeSpending, Currency
 from datetime import timedelta
 from urllib.parse import urlencode
 from dateutil.relativedelta import relativedelta
 from rest_framework import status
+from django.urls import reverse
+from rest_framework.exceptions import MethodNotAllowed
 
 
 class CalendarSummaryViewTests(TestCase):
@@ -125,4 +127,76 @@ class CalendarSummaryViewTests(TestCase):
         """
         self.client.logout()
         response = self.client.get('/calendar-summary/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class CurrencyViewSetTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(username='user1',
+                                             password='testpass')
+        self.user2 = User.objects.create_user(username='user2',
+                                              password='testpass')
+        self.client.force_authenticate(user=self.user)
+        self.currency = Currency.objects.create(owner=self.user,
+                                                currency='USD')
+        self.currency_url = f'/currency/{self.currency.pk}/'
+
+    def test_list_creates_currency_if_not_exists(self):
+        """Should auto-create and return a currency if one doesn't exist."""
+        Currency.objects.filter(owner=self.user).delete()
+        response = self.client.get('/currency/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['owner'], self.user.username)
+
+    def test_list_returns_existing_currency(self):
+        """Should return the existing currency for authenticated user."""
+        response = self.client.get('/currency/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['currency'], self.currency.currency)
+
+    def test_retrieve_own_currency(self):
+        """Should allow user to retrieve their own currency via pk."""
+        response = self.client.get(self.currency_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['currency'], self.currency.currency)
+
+    def test_retrieve_other_users_currency_raises_permission_denied(self):
+        """Should not allow user to access another user's currency."""
+        other_currency = Currency.objects.create(
+            owner=self.user2, currency='EUR')
+        response = self.client.get(f'/currency/{other_currency.pk}/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_update_own_currency(self):
+        """Should allow user to update their own currency setting."""
+        response = self.client.put(self.currency_url, {'currency': 'GBP'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['currency'], 'GBP')
+        self.currency.refresh_from_db()
+        self.assertEqual(self.currency.currency, 'GBP')
+
+    def test_update_other_users_currency_fails(self):
+        """Should block users from updating another user's currency."""
+        other_currency = Currency.objects.create(
+            owner=self.user2, currency='AUD')
+        response = self.client.put(
+            f'/currency/{other_currency.pk}/', {'currency': 'JPY'})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        other_currency.refresh_from_db()
+        self.assertEqual(other_currency.currency, 'AUD')
+
+    def test_create_method_is_disallowed(self):
+        """Should raise MethodNotAllowed for POST to /currency/."""
+        response = self.client.post('/currency/', {'currency': 'USD'})
+        self.assertEqual(response.status_code,
+                         status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(
+            response.data['detail'], "Currency is created automatically.")
+
+    def test_requires_authentication(self):
+        """Should return 403 for unauthenticated
+        access to currency endpoints."""
+        self.client.logout()
+        response = self.client.get('/currency/')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
