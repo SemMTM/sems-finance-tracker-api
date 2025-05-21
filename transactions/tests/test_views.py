@@ -2,7 +2,13 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 from django.contrib.auth.models import User
 from django.utils.timezone import now
-from transactions.models import Income, Expenditure, DisposableIncomeSpending, Currency
+from transactions.models import (
+    Income,
+    Expenditure,
+    DisposableIncomeSpending,
+    Currency,
+    DisposableIncomeBudget,
+  )
 from datetime import timedelta
 from urllib.parse import urlencode
 from dateutil.relativedelta import relativedelta
@@ -64,7 +70,8 @@ class CalendarSummaryViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
         for entry in response.data:
-            self.assertTrue(entry['date'].startswith(self.today.strftime("%Y-%m")))
+            self.assertTrue(entry['date'].startswith(self.today.strftime(
+                "%Y-%m")))
 
     def test_invalid_month_param_falls_back_to_current(self):
         """Should gracefully fall back to current month if month
@@ -199,4 +206,66 @@ class CurrencyViewSetTests(TestCase):
         access to currency endpoints."""
         self.client.logout()
         response = self.client.get('/currency/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class DisposableIncomeBudgetViewSetTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            username='budgetuser', password='pass')
+        self.client.force_authenticate(user=self.user)
+        self.url = '/disposable-budget/'
+
+    def test_auto_creates_budget_if_not_exists(self):
+        """Should automatically create a 0-value budget
+        for the current month on GET."""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            DisposableIncomeBudget.objects.filter(owner=self.user).count(), 1)
+        self.assertEqual(response.data[0]['formatted_amount'], '£0.00')
+
+    def test_retrieves_existing_budget(self):
+        """Should return the already existing budget if one exists."""
+        today = now().date().replace(day=1)
+        DisposableIncomeBudget.objects.create(
+            owner=self.user, amount=12000, date=today)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['formatted_amount'], '£120.00')
+
+    def test_restricts_access_to_own_budget(self):
+        """Should not allow access to other users' budgets."""
+        other_user = User.objects.create_user(
+            username='otheruser', password='pass')
+        today = now().date().replace(day=1)
+        budget = DisposableIncomeBudget.objects.create(
+            owner=other_user, amount=15000, date=today)
+
+        response = self.client.get(f'{self.url}{budget.pk}/')
+        self.assertEqual(response.status_code, 403)
+
+    def test_blocks_manual_create(self):
+        """Should return 403 when trying to create a budget manually."""
+        response = self.client.post(self.url, {
+            'amount': 200,
+            'date': now().date().isoformat()
+        })
+        self.assertEqual(response.status_code, 403)
+
+    def test_blocks_budget_deletion(self):
+        """Should return 403 when trying to delete a budget."""
+        today = now().date().replace(day=1)
+        budget = DisposableIncomeBudget.objects.create(
+            owner=self.user, amount=20000, date=today)
+        response = self.client.delete(f'{self.url}{budget.pk}/')
+        self.assertEqual(response.status_code, 403)
+
+    def test_requires_authentication(self):
+        """Should return 403 if unauthenticated user accesses budget."""
+        self.client.logout()
+        response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
