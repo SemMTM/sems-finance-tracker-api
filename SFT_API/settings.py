@@ -136,7 +136,8 @@ ROOT_URLCONF = 'SFT_API.urls'
 
 ACCOUNT_LOGIN_METHODS = {'username'}
 ACCOUNT_EMAIL_VERIFICATION = 'none'
-ACCOUNT_SIGNUP_FIELDS = ['email', 'username*', 'password1*', 'password2*']
+ACCOUNT_SIGNUP_FIELDS = ['username*', 'password1*', 'password2*']
+ACCOUNT_EMAIL_REQUIRED = False
 
 TEMPLATES = [
     {
