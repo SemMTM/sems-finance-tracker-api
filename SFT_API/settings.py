@@ -134,26 +134,9 @@ SIMPLE_JWT = {
 ROOT_URLCONF = 'SFT_API.urls'
 
 
-ACCOUNT_LOGIN_METHODS = {'username', 'email'}
+ACCOUNT_LOGIN_METHODS = {'username'}
 ACCOUNT_EMAIL_VERIFICATION = 'none'
-ACCOUNT_EMAIL_REQUIRED = False
-ACCOUNT_USERNAME_REQUIRED = True
-ACCOUNT_AUTHENTICATION_METHOD = 'username'
-
-SIGNUP_FIELDS = {
-    'username': {
-        'required': True,
-    },
-    'email': {
-        'required': False,
-    },
-    'password1': {
-        'required': True,
-    },
-    'password2': {
-        'required': True,
-    },
-}
+ACCOUNT_SIGNUP_FIELDS = ['email', 'username*', 'password1*', 'password2*']
 
 TEMPLATES = [
     {
