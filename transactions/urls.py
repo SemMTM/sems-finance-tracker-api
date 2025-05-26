@@ -10,6 +10,7 @@ from .views import (
     WeeklySummaryView,
     MonthlySummaryView,
 )
+from views.test_view import TestHomepageDataView
 
 
 router = DefaultRouter()
@@ -22,11 +23,13 @@ router.register(r'disposable-budget', DisposableIncomeBudgetViewSet,
 router.register(r'currency', CurrencyViewSet, basename='currency')
 
 urlpatterns = [
-    path('', include(router.urls)),
-    path('monthly-summary/', MonthlySummaryView.as_view(),
-         name='monthly-summary'),
-    path('weekly-summary/', WeeklySummaryView.as_view(),
-         name='weekly-summary'),
-    path('calendar-summary/', CalendarSummaryView.as_view(),
-         name='calendar-summary'),
+     path('', include(router.urls)),
+     path('monthly-summary/', MonthlySummaryView.as_view(),
+          name='monthly-summary'),
+     path('weekly-summary/', WeeklySummaryView.as_view(),
+          name='weekly-summary'),
+     path('calendar-summary/', CalendarSummaryView.as_view(),
+          name='calendar-summary'),
+     path('test-homepage-data/', TestHomepageDataView.as_view(),
+          name='test-homepage-data'),
 ]
