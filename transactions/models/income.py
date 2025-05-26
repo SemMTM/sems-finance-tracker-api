@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from .shared import REPEATED_CHOICES
-import uuid  # noqa
+from django.core.validators import MaxValueValidator
 
 
 class Income(models.Model):
@@ -22,12 +22,13 @@ class Income(models.Model):
         related_name="incomes"
     )
     title = models.CharField(
-        max_length=100,
+        max_length=50,
         blank=False,
         help_text="Short label for this income source."
     )
     amount = models.PositiveIntegerField(
         blank=False,
+        validators=[MaxValueValidator(1_000_000)],
         help_text="Income amount in pence (e.g., £1200 = 120000)."
     )
     date = models.DateTimeField(

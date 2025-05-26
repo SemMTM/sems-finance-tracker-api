@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.validators import MaxValueValidator
 
 
 class DisposableIncomeBudget(models.Model):
@@ -15,6 +16,7 @@ class DisposableIncomeBudget(models.Model):
     amount = models.PositiveIntegerField(
         default=0,
         blank=False,
+        validators=[MaxValueValidator(1_000_000)],
         help_text="Budget amount in pence."
     )
     date = models.DateTimeField(
@@ -42,11 +44,13 @@ class DisposableIncomeSpending(models.Model):
         related_name="disposable_income_spending"
     )
     title = models.CharField(
-        max_length=100,
+        max_length=50,
         blank=False,
         help_text="Short description of the expenditure."
     )
     amount = models.PositiveIntegerField(
+        default=0,
+        validators=[MaxValueValidator(1_000_000)],
         help_text="Amount spent in pence."
     )
     date = models.DateTimeField(

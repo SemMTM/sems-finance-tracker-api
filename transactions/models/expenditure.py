@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
-import uuid  # noqa
 from .shared import REPEATED_CHOICES, TYPE
+from django.core.validators import MaxValueValidator
 
 
 class Expenditure(models.Model):
@@ -23,11 +23,13 @@ class Expenditure(models.Model):
         related_name="expenditures"
     )
     title = models.CharField(
-        max_length=100,
+        max_length=50,
         blank=False,
         help_text="Name or label for this expenditure."
     )
     amount = models.PositiveIntegerField(
+        default=0,
+        validators=[MaxValueValidator(1_000_000)],
         help_text="Amount in pence (e.g., £12.99 = 1299)."
     )
     repeated = models.CharField(
