@@ -10,7 +10,6 @@ from .views import (
     WeeklySummaryView,
     MonthlySummaryView,
 )
-from views.test_view import TestHomepageDataView
 
 
 router = DefaultRouter()
@@ -30,6 +29,4 @@ urlpatterns = [
           name='weekly-summary'),
      path('calendar-summary/', CalendarSummaryView.as_view(),
           name='calendar-summary'),
-     path('test-homepage-data/', TestHomepageDataView.as_view(),
-          name='test-homepage-data'),
 ]
