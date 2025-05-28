@@ -99,7 +99,6 @@ class IncomeViewSet(viewsets.ModelViewSet):
             future_entries.update(
                 title=instance.title,
                 amount=instance.amount,
-                date=instance.date,
                 repeated=instance.repeated,
                 repeat_group_id=new_group_id
             )
