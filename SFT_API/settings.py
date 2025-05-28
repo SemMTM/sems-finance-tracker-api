@@ -85,7 +85,8 @@ REST_AUTH = {
     'JWT_AUTH_REFRESH_COOKIE': 'refreshToken',
     'JWT_AUTH_SAMESITE': os.environ.get("SAME_SITE"),
     'JWT_AUTH_SECURE': not DEBUG,
-    'JWT_AUTH_HTTPONLY': True
+    'JWT_AUTH_HTTPONLY': True,
+    'OLD_PASSWORD_FIELD_ENABLED': True
 }
 
 if DEBUG:
