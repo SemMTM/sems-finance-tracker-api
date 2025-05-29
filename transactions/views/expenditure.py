@@ -5,8 +5,11 @@ import uuid
 from ..models.expenditure import Expenditure
 from ..serializers.expenditure import ExpenditureSerializer
 from core.utils.date_helpers import get_user_and_month_range
-from ..utils import (generate_weekly_repeats_for_6_months,
-                     generate_monthly_repeats_for_6_months)
+from ..utils import (
+    generate_weekly_repeats_for_6_months,
+    generate_monthly_repeats_for_6_months,
+    repeat_on_date_change
+)
 
 
 class ExpenditureViewSet(viewsets.ModelViewSet):
@@ -83,29 +86,35 @@ class ExpenditureViewSet(viewsets.ModelViewSet):
         Updates the expenditure and propagates changes to future
         repeated entries.
         """
+        original = self.get_object()
         instance = serializer.save()
-        old_group_id = instance.repeat_group_id
 
-        # Only apply group updates if the entry is repeated
+        # Check if this is a repeated entry with a date change
         if (
             instance.repeated in ['WEEKLY', 'MONTHLY']
             and instance.repeat_group_id
+            and instance.date != original.date
         ):
-            new_group_id = uuid.uuid4()
+            # Handle regeneration logic and exit early
+            repeat_on_date_change(instance, model_class=Expenditure)
+            return
 
-            # Update the edited instance with the new group ID
-            instance.repeat_group_id = new_group_id
-            instance.save(update_fields=['repeat_group_id'])
+        old_group_id = instance.repeat_group_id
+        new_group_id = uuid.uuid4()
 
-            # Update future entries in the group
-            Expenditure.objects.filter(
-                owner=self.request.user,
-                repeat_group_id=old_group_id,
-                date__gt=instance.date
-            ).update(
-                title=instance.title,
-                amount=instance.amount,
-                repeated=instance.repeated,
-                repeat_group_id=new_group_id,
-                type=instance.type
-            )
+        # Update the edited instance with the new group ID
+        instance.repeat_group_id = new_group_id
+        instance.save(update_fields=['repeat_group_id'])
+
+        # Update future entries in the group
+        Expenditure.objects.filter(
+            owner=self.request.user,
+            repeat_group_id=old_group_id,
+            date__gt=instance.date
+        ).update(
+            title=instance.title,
+            amount=instance.amount,
+            repeated=instance.repeated,
+            repeat_group_id=new_group_id,
+            type=instance.type
+        )

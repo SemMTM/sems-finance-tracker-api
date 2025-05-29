@@ -201,3 +201,49 @@ def clean_old_transactions(user):
     # 4. Loop through and delete anything outside the visible window
     for model in transaction_models:
         model.objects.filter(owner=user, date__lt=cutoff_date).delete()
+
+
+def repeat_on_date_change(instance, model_class):
+    """
+    Handles the regeneration of a repeat chain when the `date` changes.
+
+    Steps:
+    1. Save current form data.
+    2. Delete this instance and all future ones in the group.
+    3. Create a new instance with updated data and a new group ID.
+    4. Use the model's repeat function to generate new entries.
+    """
+    user = instance.owner
+    old_group_id = instance.repeat_group_id
+    new_group_id = uuid.uuid4()
+    repeat_type = instance.repeated
+
+    # Save form data (Expenditure includes `type`, Income does not)
+    base_data = {
+        'owner': user,
+        'title': instance.title,
+        'amount': instance.amount,
+        'date': instance.date,
+        'repeated': instance.repeated,
+        'repeat_group_id': new_group_id,
+    }
+
+    # Add `type` only if it's an Expenditure instance
+    if hasattr(instance, 'type'):
+        base_data['type'] = instance.type
+
+    # Delete the edited and future instances in the old group
+    model_class.objects.filter(
+        owner=user,
+        repeat_group_id=old_group_id,
+        date__gte=instance.date
+    ).delete()
+
+    # Create new updated instance with same values but new group
+    new_instance = model_class.objects.create(**base_data)
+
+    # Regenerate the repeats
+    if repeat_type == "WEEKLY":
+        generate_weekly_repeats_for_6_months(new_instance, model_class)
+    elif repeat_type == "MONTHLY":
+        generate_monthly_repeats_for_6_months(new_instance, model_class)
