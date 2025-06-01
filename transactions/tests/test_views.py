@@ -414,6 +414,7 @@ class ExpenditureViewSetTests(TestCase):
             hour=0, minute=0, second=0, microsecond=0))
 
     def test_create_expenditure_successfully(self):
+        """Should allow authenticated user to create a single expenditure."""
         data = {
             'title': 'Rent',
             'amount': 100.00,
@@ -427,11 +428,13 @@ class ExpenditureViewSetTests(TestCase):
             owner=self.user, title='Rent').exists())
 
     def test_expenditure_requires_authentication(self):
+        """Should reject requests from unauthenticated users with 403."""
         self.client.logout()
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_user_cannot_access_others_expenditure(self):
+        """Should return 403 when accessing another user's expenditure."""
         other_exp = Expenditure.objects.create(
             owner=self.other_user, title='Hidden', amount=1000,
             type='BILL', date=self.today
@@ -440,6 +443,7 @@ class ExpenditureViewSetTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_create_weekly_repeat_generates_future_entries(self):
+        """Should auto-generate multiple future entries for weekly repeat."""
         data = {
             'title': 'Gym',
             'amount': 25.00,
@@ -454,6 +458,7 @@ class ExpenditureViewSetTests(TestCase):
         self.assertTrue(count > 1)
 
     def test_update_repeated_entry_propagates(self):
+        """Should update all future entries in group if date is unchanged."""
         initial = Expenditure.objects.create(
             owner=self.user, title='Sub', amount=1000, type='BILL',
             date=self.today, repeated='WEEKLY', repeat_group_id=uuid.uuid4()
@@ -475,6 +480,7 @@ class ExpenditureViewSetTests(TestCase):
         self.assertEqual(future.amount, 5000)
 
     def test_delete_repeated_entry_removes_future_instances(self):
+        """Should delete the current and future entries in the repeat group."""
         group_id = uuid.uuid4()
         base = Expenditure.objects.create(
             owner=self.user, title='Sub', amount=1000, type='BILL',
@@ -491,6 +497,7 @@ class ExpenditureViewSetTests(TestCase):
             repeat_group_id=group_id).exists())
 
     def test_get_queryset_limits_to_current_user_and_month(self):
+        """Should only return this user's expenditures for the current month."""
         Expenditure.objects.create(owner=self.user, title='Valid',
                                    amount=1000, type='BILL', date=self.today)
         Expenditure.objects.create(owner=self.other_user, title='Invalid',
@@ -501,6 +508,7 @@ class ExpenditureViewSetTests(TestCase):
         self.assertNotIn('Invalid', titles)
 
     def test_list_returns_user_entries_only(self):
+        """Should exclude other users' entries in the expenditure list."""
         Expenditure.objects.create(
             owner=self.user, title="My Expense", amount=1000,
             date=self.today)
@@ -513,6 +521,7 @@ class ExpenditureViewSetTests(TestCase):
         self.assertEqual(response.data[0]["title"], "My Expense")
 
     def test_create_adds_owner_and_generates_repeats(self):
+        """Should assign owner and create repeated entries if applicable."""
         payload = {
             "title": "Gym",
             "amount": "10.00",
@@ -526,6 +535,7 @@ class ExpenditureViewSetTests(TestCase):
             title="Gym", owner=self.user).count(), 1)
 
     def test_retrieve_rejects_unauthorized_access(self):
+        """Should return 403 when trying to retrieve someone else's data."""
         entry = Expenditure.objects.create(
             owner=self.other_user, title="Private", amount=1000,
             date=self.today)
@@ -533,6 +543,7 @@ class ExpenditureViewSetTests(TestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_partial_update_does_not_affect_unrelated_entries(self):
+        """Should update only targeted entry, not other repeat groups."""
         entry = Expenditure.objects.create(
             owner=self.user, title="A", amount=1000, repeated="WEEKLY",
             repeat_group_id=uuid.uuid4(), date=self.today
@@ -546,6 +557,7 @@ class ExpenditureViewSetTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_future_entries_updated_on_edit(self):
+        """Should apply changes to current and future entries in repeat group."""
         group_id = uuid.uuid4()
         base = Expenditure.objects.create(
             owner=self.user, title="Old", amount=1000, repeated="WEEKLY",
@@ -568,6 +580,7 @@ class ExpenditureViewSetTests(TestCase):
         self.assertGreater(len(updated), 1)
 
     def test_delete_non_repeated_deletes_only_one(self):
+        """Should delete a one-off expenditure without affecting others."""
         entry = Expenditure.objects.create(
             owner=self.user, title="One-off", amount=1000, date=self.today)
         response = self.client.delete(f"{self.url}{entry.pk}/")
@@ -575,6 +588,7 @@ class ExpenditureViewSetTests(TestCase):
         self.assertFalse(Expenditure.objects.filter(pk=entry.pk).exists())
 
     def test_delete_repeated_deletes_future_group(self):
+        """Should remove current and future entries if repeated."""
         group_id = uuid.uuid4()
         base = Expenditure.objects.create(
             owner=self.user, title='Rent', amount=10000, repeated='WEEKLY',
@@ -591,6 +605,7 @@ class ExpenditureViewSetTests(TestCase):
             repeat_group_id=group_id).exists())
 
     def test_invalid_update_returns_400(self):
+        """Should reject invalid update with status code 400."""
         entry = Expenditure.objects.create(
             owner=self.user, title="Original", amount=1000, date=self.today)
         bad_update = {"amount": "-99.99"}
@@ -598,6 +613,7 @@ class ExpenditureViewSetTests(TestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_create_with_invalid_currency_format_fails(self):
+        """Should return 400 when submitted amount format is invalid."""
         payload = {
             "title": "Bad Entry",
             "amount": "invalid",
@@ -609,6 +625,7 @@ class ExpenditureViewSetTests(TestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_anonymous_user_cannot_access_view(self):
+        """Should reject unauthenticated access to expenditure endpoint."""
         self.client.logout()
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 403)
@@ -627,6 +644,7 @@ class IncomeViewSetTests(TestCase):
         self.today_date = self.today.date()
 
     def test_authenticated_user_can_create_income(self):
+        """Should allow authenticated users to create an income entry."""
         data = {
             'title': 'Salary',
             'amount': 150.00,
@@ -639,11 +657,13 @@ class IncomeViewSetTests(TestCase):
             owner=self.user, title='Salary').exists())
 
     def test_unauthenticated_user_cannot_access(self):
+        """Should reject unauthenticated requests with a 403 response."""
         self.client.logout()
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_user_cannot_access_others_income(self):
+        """Should return 403 if user tries to access another user's income."""
         other_entry = Income.objects.create(
             owner=self.other_user,
             title='Hacked',
@@ -654,6 +674,7 @@ class IncomeViewSetTests(TestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_repeat_weekly_generates_additional_entries(self):
+        """Should generate weekly repeated income entries up to 6 months."""
         data = {
             'title': 'Weekly Pay',
             'amount': 100.00,
@@ -667,6 +688,7 @@ class IncomeViewSetTests(TestCase):
             repeat_group_id=group_id).count() > 1)
 
     def test_user_can_delete_all_future_group(self):
+        """Should delete current and future entries in a repeat group."""
         group_id = uuid.uuid4()
         base = Income.objects.create(
             owner=self.user, title='Repeat', amount=1000,
@@ -684,6 +706,7 @@ class IncomeViewSetTests(TestCase):
             repeat_group_id=group_id).exists())
 
     def test_user_can_update_income_and_propagates(self):
+        """Should update income and apply changes to future repeated entries."""
         group_id = uuid.uuid4()
         base = Income.objects.create(
             owner=self.user, title="Old", amount=1000,
@@ -711,6 +734,7 @@ class IncomeViewSetTests(TestCase):
         self.assertEqual(future.amount, 5000)
 
     def test_invalid_update_returns_400(self):
+        """Should return 400 when trying to update with invalid data."""
         entry = Income.objects.create(
             owner=self.user, title="Job", amount=1000, date=self.today
         )
@@ -719,6 +743,7 @@ class IncomeViewSetTests(TestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_list_shows_only_current_month_entries(self):
+        """Should only return entries from the current month for the user."""
         Income.objects.create(
             owner=self.user, title="Current", amount=1000, date=self.today
         )
