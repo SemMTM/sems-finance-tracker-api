@@ -698,7 +698,7 @@ class IncomeViewSetTests(TestCase):
         payload = {
             "title": "New Title",
             "amount": "50.00",
-            "date": self.today_date,
+            "date": base.date,
             "repeated": "WEEKLY"
         }
 
@@ -770,7 +770,7 @@ class IncomeViewSetTests(TestCase):
             'amount': 'not-a-number',
             'date': self.today.date(),
             'repeated': 'NEVER'
-        })
+            })
         self.assertEqual(response.status_code, 400)
 
     def test_repeat_monthly_generates_entries(self):
@@ -797,7 +797,7 @@ class IncomeViewSetTests(TestCase):
         response = self.client.put(f"{self.url}{entry.pk}/", {
             'title': 'GID Updated',
             'amount': '60.00',
-            'date': self.today.date(),
+            'date': entry.date,
             'repeated': 'WEEKLY'
         })
 
@@ -840,7 +840,7 @@ class IncomeViewSetTests(TestCase):
         response = self.client.put(f"{self.url}{current.pk}/", {
             'title': 'Updated Title',
             'amount': '77.00',
-            'date': current.date.date(),
+            'date': current.date,
             'repeated': 'WEEKLY'
         })
 
