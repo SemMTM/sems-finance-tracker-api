@@ -2,6 +2,10 @@
 ## Overview
 This RESTful API powers the backend of the Financial Tracker application — a full-stack solution that allows authenticated users to manage their personal finances in a secure, intuitive way.
 
+The frontend README can be found [HERE](https://github.com/SemMTM/sems-financial-tracker/tree/main).
+
+[Deployed version of the Monthly Finance Tracker can be found here.](https://www.monthlyfinancetracker.xyz)
+
 The API exposes structured endpoints for:
 - Adding, editing, and deleting income/expenditure entries (with support for automatic repetition)
 - Managing recurring and one-off expenditures
