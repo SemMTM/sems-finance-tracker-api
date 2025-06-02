@@ -63,10 +63,10 @@ POST /dj-rest-auth/token/refresh/
 
 For more details on security setup and environment variable configuration, see the [Security](https://github.com/SemMTM/sems-financial-tracker?tab=readme-ov-file#security) section of the overall projects README.
 
-## Endpoints
+# Endpoints
 All endpoints listed below require authentication via secure HttpOnly JWT cookies. Only the authenticated user's data is ever returned or modified.
 
-### Income
+## Income
 **Base URL**: `/income/`
 
 | Method | Endpoint                    | Description                                                         |
@@ -106,7 +106,7 @@ Create a new income entry
 }
 ```
 
-### Expenditures
+## Expenditures
 **Base URL**: `/expenditures/`
 
 | Method | Endpoint                    | Description                                                         |
@@ -144,7 +144,7 @@ Create a new income entry
 }
 ```
 
-### Disposable Income Budget
+## Disposable Income Budget
 **Base URL**: `/disposable-budget/`
 
 | Method | Endpoint | Description |
@@ -155,7 +155,7 @@ Create a new income entry
 > Auto-created on the 1st of each month with default value 0.
 
 
-### Disposable Income Spending
+## Disposable Income Spending
 
 **Base URL**: `/disposable-spending/`
 
@@ -190,7 +190,7 @@ Create a new income entry
 }
 ```
 
-### Calendar Summary
+## Calendar Summary
 
 **Base URL**: `/calendar-summary/`
 
@@ -211,7 +211,7 @@ Create a new income entry
 ]
 ```
 
-### Weekly Summary
+## Weekly Summary
 
 **Endpoint**:
 `GET /weekly-summary/?date=YYYY-MM-DD`
@@ -250,7 +250,7 @@ GET /weekly-summary/?month=2025-06
 - All values are strings for formatting consistency
 - Currency symbol is not returned — the frontend uses user settings for that
 
-### Monthly Summary
+## Monthly Summary
 **Endpoint**:
 `GET /monthly-summary/?month=YYYY-MM`
 
@@ -290,7 +290,7 @@ GET /monthly-summary/?month=2025-06
 |formatted_remaining_disposable |	Disposable budget minus disposable spending |
 
 
-### Currency
+## Currency
 **Base URL**: `/currency/`
 
 | Method | Endpoint | Description| 
@@ -310,7 +310,7 @@ The selected currency controls the symbol returned in all financial endpoints.
 }
 ```
 
-### Change Email
+## Change Email
 **Endpoint**: `PUT /change-email/`
 
 This endpoint allows an authenticated user to update their registered email address. It uses a custom `APIView` that validates the input and applies the change directly to the user model.
@@ -367,3 +367,105 @@ The ChangeEmailSerializer performs:
 - Required field check
 - Valid email format check (e.g., test@domain.com)
 - Uniqueness check against other users in the database
+
+# Permissions & Security
+The API enforces strict access control and data protection practices to ensure user privacy and prevent unauthorized access:
+
+### Authentication
+- All endpoints are protected using JWT-based cookie authentication.
+- Tokens are stored in HttpOnly cookies, making them inaccessible via JavaScript and protecting against XSS attacks.
+- Session persistence is handled by Django REST Auth and the token refresh flow is automatically managed on the frontend.
+
+### Ownership Enforcement
+- Every financial record (e.g. Income, Expenditure, Budget) is scoped to the authenticated user.
+- Querysets are filtered so users can only access their own data. No user can retrieve, edit, or delete another user's records — even if they know the record ID.
+
+### Data Visibility
+- Sensitive fields like owner and is_owner are included in some responses for internal verification, but all actions are permission-locked server-side.
+- All write operations (POST, PUT, PATCH, DELETE) require authentication and ownership.
+
+### Other Security Measures
+- Production secrets and keys are stored in environment variables and are never committed to source control.
+- DEBUG = False in production.
+- No passwords or sensitive data are ever logged or exposed through responses.
+- Rate limiting and throttling are supported via DRF settings (optional but recommended for public APIs).
+
+Refer to the Security section of the frontend README [HERE]((https://github.com/SemMTM/sems-financial-tracker?tab=readme-ov-file#security)) for details on:
+- Token management
+- Cookie security flags
+- Secure routing logic based on auth state
+
+# Error Handling
+The API is designed to return clear, structured error responses for all major failure scenarios. These are caught and handled gracefully on the frontend.
+
+### HTTP Status Codes Used
+
+| Code | Meaning |
+|--|--|
+| `200 OK` | Request succeeded |
+| 201 Created |	New resource created |
+| 204 No Content |	Resource successfully deleted |
+| 400 Bad Request |	Validation error or malformed request |
+| 401 Unauthorized |	Missing or invalid authentication |
+| 403 Forbidden |	Authenticated but not permitted (e.g. not the owner) |
+| 404 Not Found |	Resource doesn't exist or is not owned by the user |
+| 500 Internal Server Error |	Server-side issue (unexpected error) |
+
+### Example Validation Errors
+```json
+{
+  "amount": ["Ensure this value is greater than or equal to 0."]
+}
+```
+```json
+{
+  "email": ["This email is already in use."]
+}
+```
+
+### Frontend Handling
+The frontend displays:
+- Inline field errors for form validations
+- General error banners for failed fetches or submissions
+- Spinners and loading states during async operations
+- Redirects to login if a user’s session expires or is invalid
+
+# Testing & Validation
+This project was manually tested end-to-end to ensure correctness, security, and consistency across all CRUD operations, authentication flows, and data presentation layers. The frontend and backend were tested separately and in coordination to ensure data integrity and correct user experience.
+
+### Backend Testing (Django)
+Manual and unit testing was applied across all views, serializers, and utility functions.
+Comprehensive unit tests were written using for all key views:
+- `IncomeViewSet`
+- `ExpenditureViewSet`
+- `DisposableIncomeSpendingViewSet`
+- `DisposableIncomeBudgetViewSet`
+- `CalendarSummaryView`
+- `WeeklySummaryView`
+- `MonthlySummaryView`
+- `CurrencyViewSet`
+
+Tests cover all major cases including:
+- Successful creation, update, and deletion
+- Proper filtering of data by user and date
+- Permission enforcement (preventing cross-user access)
+- Validation failures (e.g. negative amounts, invalid formats)
+- Repeated entry logic and propagation
+
+All tests include docstrings for clarity and alignment with best practices.
+
+Unit test files can be found with the following links:
+#### Transactions app:
+- [Serializer unit tests](/transactions/tests/test_serializers.py)
+- [Views unit tests](/transactions/tests/test_views.py)
+- [Utility functions unit tests](/transactions/tests/test_utils.py)
+
+#### Core app: 
+- [Serializer unit tests](/core/tests/test_serializers.py)
+- [Views unit tests](/core/tests/test_views.py)
+- [Utils unit tests](/core/tests/test_utils.py)
+
+For more detail on the manual testing that was done, see the TESTING.md file on the frontend repo [HERE](https://github.com/SemMTM/sems-financial-tracker/blob/main/TESTING.md).
+
+# Deployment
+See the Deployment section of this [README](https://github.com/SemMTM/sems-financial-tracker?tab=readme-ov-file#backend-deployment-heroku) for details on hosting the backend API on Heroku
