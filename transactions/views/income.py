@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
+import uuid
 from ..models.income import Income
 from ..serializers.income import IncomeSerializer
 from core.utils.date_helpers import get_user_and_month_range
@@ -9,7 +10,6 @@ from ..utils import (
     generate_monthly_repeats_for_6_months,
     repeat_on_date_change
 )
-import uuid
 
 
 class IncomeViewSet(viewsets.ModelViewSet):

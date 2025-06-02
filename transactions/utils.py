@@ -1,15 +1,14 @@
-from django.utils.timezone import make_aware
+from django.utils.timezone import make_aware, now
 from dateutil.relativedelta import relativedelta
-from django.utils.timezone import now
 from datetime import timedelta, time, datetime
 from calendar import monthrange
+import uuid
 from transactions.models import (
     Income,
     Expenditure,
     DisposableIncomeSpending,
     DisposableIncomeBudget,
 )
-import uuid
 
 
 def generate_weekly_repeats_for_6_months(instance, model_class):
@@ -205,7 +204,8 @@ def clean_old_transactions(user):
 
 def repeat_on_date_change(instance, model_class):
     """
-    Handles the regeneration of a repeat chain when the `date` changes.
+    Handles the regeneration of a repeat chain when the `date`
+    on an entry is changed by the user.
 
     Steps:
     1. Save current form data.
